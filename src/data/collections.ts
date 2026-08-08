@@ -2,6 +2,8 @@ import catWall from "@/assets/cat-wall.jpg";
 import catTable from "@/assets/cat-table.jpg";
 import catCoasters from "@/assets/cat-coasters.jpg";
 import catCustom from "@/assets/cat-custom.jpg";
+import catClocks from "@/assets/cat-clocks.jpg";
+import catTrays from "@/assets/cat-trays.jpg";
 import p1 from "@/assets/p1.jpg";
 import p2 from "@/assets/p2.jpg";
 import p3 from "@/assets/p3.jpg";
@@ -46,7 +48,7 @@ export const collections: Collection[] = [
     slug: "clocks",
     name: "Clocks",
     count: "14 pieces",
-    image: catWall,
+    image: catClocks,
     tagline: "Time, cast in stone and resin",
     description:
       "Silent-sweep movements housed in agate, olive wood and pigmented resin. Quiet objects that happen to tell time.",
@@ -91,7 +93,7 @@ export const collections: Collection[] = [
     slug: "trays-and-boards",
     name: "Trays & Boards",
     count: "19 pieces",
-    image: catWall,
+    image: catTrays,
     tagline: "Serve it on something worth keeping",
     description:
       "Food-safe boards and trays in olive wood and resin — built for grazing platters and the shelf afterwards.",
