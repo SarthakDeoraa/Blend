@@ -87,11 +87,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Blend — Handcrafted Resin & Wood Home Decor" },
       {
         property: "og:description",
-        content: "Where nature meets modern living. Handcrafted resin art and decor.",
+        content: "Blend crafts resin, wood and stone into modern art and functional decor for the home.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Blend — Handcrafted Resin & Wood Home Decor" },
+      { name: "twitter:description", content: "Blend crafts resin, wood and stone into modern art and functional decor for the home." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/4e2345e3c4a3230ca88570003863130b/id-preview-215730cf--0ef0b526-ee37-4717-8cb3-58f768754a90.lovable.app-1786198597481.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/4e2345e3c4a3230ca88570003863130b/id-preview-215730cf--0ef0b526-ee37-4717-8cb3-58f768754a90.lovable.app-1786198597481.png" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
