@@ -17,7 +17,7 @@ export function ShopByForm() {
 
       <Reveal
         delay={120}
-        className="no-scrollbar -mx-5 mt-12 flex justify-start gap-4 overflow-x-auto px-5 md:mx-0 md:justify-center md:px-0"
+        className="no-scrollbar -mx-5 mt-12 flex w-fit max-w-full gap-4 overflow-x-auto px-5 md:mx-auto md:px-0"
       >
         {collections.map((category) => (
           <Link
