@@ -1,6 +1,5 @@
 import { ArrowRight } from "lucide-react";
 import heroImage from "@/assets/hero.jpg";
-import { Reveal } from "./reveal";
 
 export function Hero() {
   return (
@@ -15,7 +14,7 @@ export function Hero() {
       <div className="absolute inset-0 bg-linear-to-r from-primary/70 via-primary/35 to-transparent" />
 
       <div className="relative mx-auto flex min-h-[92vh] max-w-7xl flex-col justify-end px-5 pt-40 pb-20 md:justify-center md:px-8 md:pb-28">
-        <Reveal className="max-w-2xl">
+        <div className="max-w-2xl animate-in fade-in slide-in-from-bottom-6 duration-1000 ease-out">
           <p className="text-[11px] tracking-[0.35em] text-primary-foreground/70 uppercase">
             Resin · Wood · Stone
           </p>
@@ -46,7 +45,7 @@ export function Hero() {
               Our craft story
             </a>
           </div>
-        </Reveal>
+        </div>
       </div>
     </section>
   );
