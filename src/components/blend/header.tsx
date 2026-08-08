@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Search, User, ShoppingBag, Menu, X } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 const announcements = [
   "Free Nationwide Shipping",
@@ -8,10 +9,10 @@ const announcements = [
 ];
 
 const navLinks = [
-  { label: "Shop", href: "#collection" },
-  { label: "Collections", href: "#forms" },
-  { label: "Our Impact", href: "#impact" },
-  { label: "Journal", href: "#community" },
+  { label: "Collections", to: "/collections" },
+  { label: "Clocks", to: "/collections/clocks" },
+  { label: "Center Tables", to: "/collections/center-tables" },
+  { label: "Wall Art", to: "/collections/wall-art" },
 ];
 
 function TopBar() {
@@ -51,19 +52,20 @@ export function SiteHeader() {
       <TopBar />
       <div className="border-b border-border/60 bg-background/70 backdrop-blur-md">
         <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-4 md:grid-cols-3 md:px-8">
-          <a href="#top" className="font-display text-2xl tracking-tight">
+          <Link to="/" className="font-display text-2xl tracking-tight">
             Blend<span className="text-accent">.</span>
-          </a>
+          </Link>
 
           <nav className="hidden items-center justify-center gap-9 md:flex">
             {navLinks.map((link) => (
-              <a
+              <Link
                 key={link.label}
-                href={link.href}
+                to={link.to}
+                activeProps={{ className: "text-foreground" }}
                 className="link-underline text-[13px] tracking-wide text-muted-foreground transition-colors hover:text-foreground"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
           </nav>
 
@@ -102,14 +104,14 @@ export function SiteHeader() {
         {open && (
           <nav className="flex flex-col gap-1 border-t border-border/60 px-5 py-4 md:hidden">
             {navLinks.map((link) => (
-              <a
+              <Link
                 key={link.label}
-                href={link.href}
+                to={link.to}
                 onClick={() => setOpen(false)}
                 className="rounded-2xl px-3 py-3 text-sm tracking-wide transition-colors hover:bg-secondary"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
           </nav>
         )}

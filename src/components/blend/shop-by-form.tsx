@@ -1,16 +1,6 @@
-import catWall from "@/assets/cat-wall.jpg";
-import catTable from "@/assets/cat-table.jpg";
-import catCoasters from "@/assets/cat-coasters.jpg";
-import catCustom from "@/assets/cat-custom.jpg";
+import { Link } from "@tanstack/react-router";
 import { Reveal } from "./reveal";
-
-const categories = [
-  { name: "Wall Art", image: catWall, count: "38 pieces" },
-  { name: "Center Tables", image: catTable, count: "12 pieces" },
-  { name: "Coasters", image: catCoasters, count: "24 sets" },
-  { name: "Custom Pieces", image: catCustom, count: "Made to order" },
-  { name: "Trays & Boards", image: catWall, count: "19 pieces" },
-];
+import { collections } from "@/data/collections";
 
 export function ShopByForm() {
   return (
@@ -25,11 +15,15 @@ export function ShopByForm() {
         </p>
       </Reveal>
 
-      <Reveal delay={120} className="no-scrollbar -mx-5 mt-12 flex gap-4 overflow-x-auto px-5 md:mx-0 md:px-0">
-        {categories.map((category) => (
-          <a
-            key={category.name}
-            href="#collection"
+      <Reveal
+        delay={120}
+        className="no-scrollbar -mx-5 mt-12 flex w-fit max-w-full gap-4 overflow-x-auto px-5 md:mx-auto md:px-0"
+      >
+        {collections.map((category) => (
+          <Link
+            key={category.slug}
+            to="/collections/$slug"
+            params={{ slug: category.slug }}
             className="group relative h-[380px] w-[180px] shrink-0 overflow-hidden rounded-[100px] sm:h-[460px] sm:w-[220px]"
           >
             <img
@@ -38,7 +32,7 @@ export function ShopByForm() {
               loading="lazy"
               width={640}
               height={1024}
-              className="h-full w-full object-cover transition-transform duration-[1.2s] ease-out group-hover:scale-105"
+              className="h-full w-full object-cover object-center transition-transform duration-[1.2s] ease-out group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-primary/15 transition-colors duration-700 group-hover:bg-primary/55" />
             <div className="absolute inset-x-0 bottom-0 px-6 pb-10 text-center">
@@ -49,7 +43,7 @@ export function ShopByForm() {
                 {category.count}
               </p>
             </div>
-          </a>
+          </Link>
         ))}
       </Reveal>
     </section>
