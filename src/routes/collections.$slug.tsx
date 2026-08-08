@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/blend/header";
 import { SiteFooter } from "@/components/blend/footer";
 import { Reveal } from "@/components/blend/reveal";
 import { ProductCard } from "@/components/blend/product-card";
-import { collections, getCollection } from "@/data/collections";
+import { collections, getCollection, type Collection, type Product } from "@/data/collections";
 
 export const Route = createFileRoute("/collections/$slug")({
   loader: ({ params }) => {
@@ -35,7 +35,7 @@ export const Route = createFileRoute("/collections/$slug")({
 });
 
 function CollectionPage() {
-  const { collection } = Route.useLoaderData();
+  const { collection } = Route.useLoaderData() as { collection: Collection };
   const others = collections.filter((c) => c.slug !== collection.slug);
 
   return (
@@ -69,7 +69,7 @@ function CollectionPage() {
           </Reveal>
 
           <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {collection.products.map((product, index) => (
+            {collection.products.map((product: Product, index: number) => (
               <Reveal key={product.name} delay={index * 100}>
                 <ProductCard product={product} />
               </Reveal>
