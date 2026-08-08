@@ -55,7 +55,7 @@ export function Community() {
           onPointerMove={onPointerMove}
           onPointerUp={() => setDragging(false)}
           onPointerLeave={() => setDragging(false)}
-          className={`no-scrollbar flex gap-5 overflow-x-auto px-5 pb-4 md:px-8 ${
+          className={`no-scrollbar mx-auto flex w-fit max-w-full gap-5 overflow-x-auto px-5 pb-4 md:px-8 ${
             dragging ? "cursor-grabbing" : "cursor-grab"
           }`}
         >
@@ -71,7 +71,7 @@ export function Community() {
                 width={576}
                 height={1024}
                 draggable={false}
-                className="h-full w-full object-cover transition-transform duration-[1.2s] ease-out group-hover:scale-105"
+                className="h-full w-full object-cover object-center transition-transform duration-[1.2s] ease-out group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-linear-to-t from-primary/80 via-primary/10 to-transparent" />
               <span className="absolute top-4 right-4 grid h-10 w-10 place-items-center rounded-full bg-background/25 backdrop-blur-md">
