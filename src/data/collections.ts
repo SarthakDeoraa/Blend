@@ -21,18 +21,25 @@ export type Product = {
 export type Collection = {
   slug: string;
   name: string;
-  count: string;
   image: string;
   tagline: string;
   description: string;
   products: Product[];
 };
 
+/**
+ * HOW TO ADD PRODUCTS
+ * 1. Put the photo in src/assets/<collection>/<name>.jpg
+ * 2. Import it at the top: import oceanPanel from "@/assets/wall-art/ocean.jpg";
+ * 3. Add an entry to that collection's `products` array:
+ *    { name: "Ocean Panel", image: oceanPanel, price: "₹18,400", rating: 5, reviews: 0, badge: "New" }
+ * Piece counts update automatically. To add a new collection, copy a block below
+ * with a unique `slug` — its page at /collections/<slug> is created automatically.
+ */
 export const collections: Collection[] = [
   {
     slug: "wall-art",
     name: "Wall Art",
-    count: "38 pieces",
     image: catWall,
     tagline: "Resin landscapes for empty walls",
     description:
@@ -47,7 +54,6 @@ export const collections: Collection[] = [
   {
     slug: "clocks",
     name: "Clocks",
-    count: "14 pieces",
     image: catClocks,
     tagline: "Time, cast in stone and resin",
     description:
@@ -62,7 +68,6 @@ export const collections: Collection[] = [
   {
     slug: "center-tables",
     name: "Center Tables",
-    count: "12 pieces",
     image: catTable,
     tagline: "The centre of the room, poured by hand",
     description:
@@ -77,7 +82,6 @@ export const collections: Collection[] = [
   {
     slug: "coasters",
     name: "Coasters",
-    count: "24 sets",
     image: catCoasters,
     tagline: "Small pieces, same obsession",
     description:
@@ -92,7 +96,6 @@ export const collections: Collection[] = [
   {
     slug: "trays-and-boards",
     name: "Trays & Boards",
-    count: "19 pieces",
     image: catTrays,
     tagline: "Serve it on something worth keeping",
     description:
@@ -107,7 +110,6 @@ export const collections: Collection[] = [
   {
     slug: "custom-pieces",
     name: "Custom Pieces",
-    count: "Made to order",
     image: catCustom,
     tagline: "Made with you, for one room only",
     description:
