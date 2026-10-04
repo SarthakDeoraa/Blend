@@ -2,12 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 import { SiteHeader } from "@/components/blend/header";
 import { Hero } from "@/components/blend/hero";
-import { ShopByForm } from "@/components/blend/shop-by-form";
+import { CollectionsSection } from "@/components/blend/collections-grid";
 import { Featured } from "@/components/blend/featured";
 import { Community } from "@/components/blend/community";
 import { Impact } from "@/components/blend/impact";
 import { TrustAndFaq } from "@/components/blend/trust-faq";
-import { SiteFooter, SupportBubble } from "@/components/blend/footer";
+import { SiteFooter } from "@/components/blend/footer";
 
 const title = "Blend — Handcrafted Resin & Wood Home Decor";
 const description =
@@ -33,14 +33,13 @@ function Index() {
       <SiteHeader />
       <main>
         <Hero />
-        <ShopByForm />
+        <CollectionsSection />
         <Featured />
         <Community />
         <Impact />
         <TrustAndFaq />
       </main>
       <SiteFooter />
-      <SupportBubble />
       <Toaster />
     </div>
   );
