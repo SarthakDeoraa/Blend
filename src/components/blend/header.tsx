@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search, User, ShoppingBag, Menu, X } from "lucide-react";
+import { Search, User, Menu, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 const announcements = [
@@ -81,15 +81,6 @@ export function SiteHeader() {
               className="hidden rounded-full p-2.5 transition-colors hover:bg-secondary sm:block"
             >
               <User size={18} strokeWidth={1.5} />
-            </button>
-            <button
-              aria-label="Cart"
-              className="relative rounded-full p-2.5 transition-colors hover:bg-secondary"
-            >
-              <ShoppingBag size={18} strokeWidth={1.5} />
-              <span className="absolute top-1 right-1 grid h-4 w-4 place-items-center rounded-full bg-accent text-[9px] font-semibold text-accent-foreground">
-                2
-              </span>
             </button>
             <button
               aria-label="Menu"

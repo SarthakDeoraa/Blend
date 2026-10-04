@@ -51,7 +51,7 @@ function CollectionPage() {
           <div className="absolute inset-0 bg-primary/65" />
           <div className="relative mx-auto max-w-7xl px-5 pt-40 pb-20 text-center md:px-8 md:pt-52 md:pb-28">
             <p className="text-[11px] tracking-[0.3em] text-primary-foreground/70 uppercase">
-              {collection.count}
+              {collection.products.length} pieces
             </p>
             <h1 className="mt-4 font-display text-4xl text-primary-foreground sm:text-5xl lg:text-6xl">
               {collection.name}

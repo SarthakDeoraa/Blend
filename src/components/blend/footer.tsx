@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, Instagram, Facebook, Youtube, MessageCircle } from "lucide-react";
+import { ArrowRight, Instagram, Facebook, Youtube } from "lucide-react";
 import { toast } from "sonner";
 
 const columns = [
@@ -104,17 +104,5 @@ export function SiteFooter() {
         </div>
       </div>
     </footer>
-  );
-}
-
-export function SupportBubble() {
-  return (
-    <button
-      aria-label="Chat with support"
-      className="fixed right-5 bottom-5 z-50 flex items-center gap-2 rounded-full bg-primary/90 px-5 py-4 text-primary-foreground shadow-[var(--shadow-glow)] backdrop-blur-md transition-transform duration-500 hover:-translate-y-1 sm:right-8 sm:bottom-8"
-    >
-      <MessageCircle size={18} strokeWidth={1.5} />
-      <span className="hidden text-xs tracking-[0.16em] uppercase sm:inline">Chat</span>
-    </button>
   );
 }
