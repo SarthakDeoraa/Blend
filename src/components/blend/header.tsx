@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search, User, Menu, X } from "lucide-react";
+import { Search, Menu, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 const announcements = [
@@ -75,12 +75,6 @@ export function SiteHeader() {
               className="rounded-full p-2.5 transition-colors hover:bg-secondary"
             >
               <Search size={18} strokeWidth={1.5} />
-            </button>
-            <button
-              aria-label="Account"
-              className="hidden rounded-full p-2.5 transition-colors hover:bg-secondary sm:block"
-            >
-              <User size={18} strokeWidth={1.5} />
             </button>
             <button
               aria-label="Menu"
