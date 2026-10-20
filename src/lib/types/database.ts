@@ -1,15 +1,9 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[];
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
-export type CollectionStatus = 'draft' | 'published';
-export type ProductStatus = 'draft' | 'published';
-export type PriceType = 'fixed' | 'starting_from' | 'on_request';
-export type ProductAvailability = 'available' | 'sold' | 'made_to_order';
+export type CollectionStatus = "draft" | "published";
+export type ProductStatus = "draft" | "published";
+export type PriceType = "fixed" | "starting_from" | "on_request";
+export type ProductAvailability = "available" | "sold" | "made_to_order";
 
 export interface CollectionRow {
   id: string;
@@ -60,6 +54,7 @@ export interface ProductRow {
   description: string;
   price_cents: number;
   price_type: PriceType;
+  discount_percent?: number;
   rating: number;
   review_count: number;
   badge: string | null;
@@ -79,6 +74,7 @@ export interface ProductInsert {
   description?: string;
   price_cents: number;
   price_type?: PriceType;
+  discount_percent?: number;
   rating?: number;
   review_count?: number;
   badge?: string | null;
@@ -98,6 +94,7 @@ export interface ProductUpdate {
   description?: string;
   price_cents?: number;
   price_type?: PriceType;
+  discount_percent?: number;
   rating?: number;
   review_count?: number;
   badge?: string | null;
@@ -217,7 +214,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "collections";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       product_images: {
@@ -231,7 +228,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "products";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       site_settings: {

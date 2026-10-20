@@ -6,9 +6,12 @@ import catClocks from "@/assets/cat-clocks.jpg";
 import catTrays from "@/assets/cat-trays.jpg";
 
 export type Product = {
+  id?: string;
   name: string;
   image: string;
   price: string;
+  originalPrice?: string | null;
+  discountPercent?: number;
   rating: number;
   reviews: number;
   badge?: string;

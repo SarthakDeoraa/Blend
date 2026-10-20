@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import React, { useState, useEffect, useMemo } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Package,
   Plus,
@@ -13,19 +13,19 @@ import {
   Eye,
   ArrowUpDown,
   MoreHorizontal,
-} from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { collections as localCollections } from '@/data/collections';
-import { formatINR, centsToRupees } from '@/lib/price';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
+} from "lucide-react";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { collections as localCollections } from "@/data/collections";
+import { formatINR, centsToRupees, calculateDiscountedCents } from "@/lib/price";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
-export const Route = createFileRoute('/admin/products/')({
+export const Route = createFileRoute("/admin/products/")({
   head: () => ({
     meta: [
-      { title: 'Products Catalogue — Blend Admin' },
-      { name: 'robots', content: 'noindex, nofollow' },
+      { title: "Products Catalogue — Blend Admin" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: AdminProductsPage,
@@ -37,11 +37,12 @@ interface DisplayProduct {
   collection_name: string;
   collection_slug: string;
   price_cents: number;
-  price_type: 'fixed' | 'starting_from' | 'on_request';
+  price_type: "fixed" | "starting_from" | "on_request";
+  discount_percent?: number;
   image_url: string;
   badge: string | null;
   is_featured: boolean;
-  status: 'published' | 'draft';
+  status: "published" | "draft";
   rating: number;
   review_count: number;
 }
@@ -49,9 +50,9 @@ interface DisplayProduct {
 function AdminProductsPage() {
   const [products, setProducts] = useState<DisplayProduct[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCollection, setSelectedCollection] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCollection, setSelectedCollection] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   useEffect(() => {
     async function loadProducts() {
@@ -62,10 +63,10 @@ function AdminProductsPage() {
         localCollections.forEach((c) => {
           c.products.forEach((p, idx) => {
             const isFeat =
-              p.name.includes('Whale') ||
-              p.name.includes('Knife Block') ||
-              p.name.includes('Ocean Blue Burl') ||
-              p.name.includes('Floral Organizer');
+              p.name.includes("Whale") ||
+              p.name.includes("Knife Block") ||
+              p.name.includes("Ocean Blue Burl") ||
+              p.name.includes("Floral Organizer");
 
             allProds.push({
               id: `${c.slug}-${idx}`,
@@ -73,11 +74,11 @@ function AdminProductsPage() {
               collection_name: c.name,
               collection_slug: c.slug,
               price_cents: 100000, // placeholder or parsed
-              price_type: p.price.startsWith('From') ? 'starting_from' : 'fixed',
+              price_type: p.price.startsWith("From") ? "starting_from" : "fixed",
               image_url: p.image,
               badge: p.badge || null,
               is_featured: isFeat,
-              status: 'published',
+              status: "published",
               rating: p.rating,
               review_count: p.reviews,
             });
@@ -89,13 +90,16 @@ function AdminProductsPage() {
       }
 
       try {
+        let prodRows: any[] = [];
         const { data, error } = await supabase
-          .from('products')
-          .select(`
+          .from("products")
+          .select(
+            `
             id,
             name,
             price_cents,
             price_type,
+            discount_percent,
             badge,
             is_featured,
             status,
@@ -109,25 +113,58 @@ function AdminProductsPage() {
               image_url,
               is_primary
             )
-          `)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false });
+          `,
+          )
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+          const { data: fallbackData, error: fallbackErr } = await supabase
+            .from("products")
+            .select(
+              `
+              id,
+              name,
+              price_cents,
+              price_type,
+              badge,
+              is_featured,
+              status,
+              rating,
+              review_count,
+              collections (
+                name,
+                slug
+              ),
+              product_images (
+                image_url,
+                is_primary
+              )
+            `,
+            )
+            .is("deleted_at", null)
+            .order("created_at", { ascending: false });
 
-        const formatted: DisplayProduct[] = (data || []).map((p: any) => {
+          if (fallbackErr) throw fallbackErr;
+          prodRows = fallbackData || [];
+        } else {
+          prodRows = data || [];
+        }
+
+        const formatted: DisplayProduct[] = prodRows.map((p: any) => {
           const primaryImg =
             p.product_images?.find((img: any) => img.is_primary)?.image_url ||
             p.product_images?.[0]?.image_url ||
-            '/placeholder.jpg';
+            "/placeholder.jpg";
 
           return {
             id: p.id,
             name: p.name,
-            collection_name: p.collections?.name || 'Unassigned',
-            collection_slug: p.collections?.slug || '',
+            collection_name: p.collections?.name || "Unassigned",
+            collection_slug: p.collections?.slug || "",
             price_cents: p.price_cents,
             price_type: p.price_type,
+            discount_percent: p.discount_percent || 0,
             image_url: primaryImg,
             badge: p.badge,
             is_featured: p.is_featured,
@@ -139,8 +176,8 @@ function AdminProductsPage() {
 
         setProducts(formatted);
       } catch (err) {
-        console.error('Error loading products from database:', err);
-        toast.error('Failed to load products from database');
+        console.error("Error loading products from database:", err);
+        toast.error("Failed to load products from database");
       } finally {
         setLoading(false);
       }
@@ -156,10 +193,9 @@ function AdminProductsPage() {
         p.collection_name.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesCollection =
-        selectedCollection === 'all' || p.collection_slug === selectedCollection;
+        selectedCollection === "all" || p.collection_slug === selectedCollection;
 
-      const matchesStatus =
-        statusFilter === 'all' || p.status === statusFilter;
+      const matchesStatus = statusFilter === "all" || p.status === statusFilter;
 
       return matchesSearch && matchesCollection && matchesStatus;
     });
@@ -173,23 +209,20 @@ function AdminProductsPage() {
     try {
       if (isSupabaseConfigured) {
         const { error } = await supabase
-          .from('products')
+          .from("products")
           .update({ deleted_at: new Date().toISOString() })
-          .eq('id', id);
+          .eq("id", id);
         if (error) throw error;
       }
 
       toast(`Deleted "${name}"`, {
-        description: 'Item moved to Trash.',
+        description: "Item moved to Trash.",
         action: {
-          label: 'Undo',
+          label: "Undo",
           onClick: async () => {
             setProducts(prev);
             if (isSupabaseConfigured) {
-              await supabase
-                .from('products')
-                .update({ deleted_at: null })
-                .eq('id', id);
+              await supabase.from("products").update({ deleted_at: null }).eq("id", id);
             }
             toast.success(`Restored "${name}"`);
           },
@@ -197,12 +230,11 @@ function AdminProductsPage() {
         duration: 5000,
       });
     } catch (err) {
-      console.error('Failed to delete product:', err);
-      toast.error('Failed to delete product from database');
+      console.error("Failed to delete product:", err);
+      toast.error("Failed to delete product from database");
       setProducts(prev);
     }
   };
-
 
   return (
     <div className="space-y-6 pb-12">
@@ -278,7 +310,9 @@ function AdminProductsPage() {
           <div className="p-12 text-center text-stone-400">
             <Package size={36} className="mx-auto mb-3 text-stone-500" />
             <p className="text-base font-medium text-stone-300">No products match your search</p>
-            <p className="text-xs text-stone-500 mt-1">Try clearing your filters or add a new piece</p>
+            <p className="text-xs text-stone-500 mt-1">
+              Try clearing your filters or add a new piece
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -329,8 +363,34 @@ function AdminProductsPage() {
                     </td>
 
                     {/* Price */}
-                    <td className="py-3 px-4 font-mono text-stone-200 font-semibold">
-                      {formatINR(product.price_cents, product.price_type)}
+                    <td className="py-3 px-4 font-mono">
+                      {product.discount_percent &&
+                      product.discount_percent > 0 &&
+                      product.price_type !== "on_request" ? (
+                        <div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-stone-100 font-semibold">
+                              {formatINR(
+                                calculateDiscountedCents(
+                                  product.price_cents,
+                                  product.discount_percent,
+                                ),
+                                product.price_type,
+                              )}
+                            </span>
+                            <span className="text-stone-500 text-xs line-through decoration-stone-500">
+                              {formatINR(product.price_cents, product.price_type)}
+                            </span>
+                          </div>
+                          <span className="inline-block mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+                            {product.discount_percent}% OFF
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-stone-200 font-semibold">
+                          {formatINR(product.price_cents, product.price_type)}
+                        </span>
+                      )}
                     </td>
 
                     {/* Featured */}
@@ -349,12 +409,12 @@ function AdminProductsPage() {
                     <td className="py-3 px-4">
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium ${
-                          product.status === 'published'
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                            : 'bg-stone-800 text-stone-400'
+                          product.status === "published"
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            : "bg-stone-800 text-stone-400"
                         }`}
                       >
-                        {product.status === 'published' ? 'Active' : 'Draft'}
+                        {product.status === "published" ? "Active" : "Draft"}
                       </span>
                     </td>
 

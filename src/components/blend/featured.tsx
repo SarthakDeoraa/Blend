@@ -49,9 +49,7 @@ export function Featured() {
 
       <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {loading
-          ? Array.from({ length: 4 }).map((_, i) => (
-              <FeaturedSkeleton key={i} />
-            ))
+          ? Array.from({ length: 4 }).map((_, i) => <FeaturedSkeleton key={i} />)
           : products.map((product, index) => (
               <Reveal key={product.name} delay={index * 110}>
                 <article className="group">
@@ -64,11 +62,15 @@ export function Featured() {
                       height={900}
                       className="aspect-square w-full object-cover transition-transform duration-[1.1s] ease-out group-hover:scale-105"
                     />
-                    {product.badge && (
+                    {product.badge ? (
                       <span className="absolute top-4 left-4 rounded-full px-3 py-1.5 text-[10px] font-semibold tracking-[0.14em] uppercase bg-accent text-accent-foreground">
                         {product.badge}
                       </span>
-                    )}
+                    ) : product.discountPercent && product.discountPercent > 0 ? (
+                      <span className="absolute top-4 left-4 rounded-full px-3 py-1.5 text-[10px] font-semibold tracking-[0.14em] uppercase bg-emerald-800/90 backdrop-blur-xs text-white shadow-sm">
+                        {product.discountPercent}% OFF
+                      </span>
+                    ) : null}
                   </div>
 
                   <div className="mt-5">
@@ -79,7 +81,19 @@ export function Featured() {
                         {product.rating} ({product.reviews})
                       </span>
                     </div>
-                    <p className="mt-2 font-display text-lg">{product.price}</p>
+                    <div className="mt-2 flex items-baseline gap-2 flex-wrap">
+                      <p className="font-display text-lg">{product.price}</p>
+                      {product.originalPrice && (
+                        <p className="text-sm font-sans text-muted-foreground/75 line-through decoration-stone-400">
+                          {product.originalPrice}
+                        </p>
+                      )}
+                      {product.discountPercent && product.discountPercent > 0 && (
+                        <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                          {product.discountPercent}% OFF
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </article>
               </Reveal>
