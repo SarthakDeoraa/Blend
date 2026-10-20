@@ -101,21 +101,45 @@ function NewProductPage() {
     navigate({ to: '/admin/products' });
   };
 
-  const handleImageUploadPlaceholder = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUploadPlaceholder = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('File size exceeds 5 MB limit');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setImageUrl(event.target?.result as string);
-        toast.success('Photo uploaded for preview');
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size exceeds 10 MB limit');
+      return;
+    }
+
+    // Show local preview immediately while uploading
+    const reader = new FileReader();
+    reader.onload = (ev) => setImageUrl(ev.target?.result as string);
+    reader.readAsDataURL(file);
+
+    if (!isSupabaseConfigured) {
+      toast.success('Photo ready for preview (Supabase not configured — URL will be local only)');
+      return;
+    }
+
+    try {
+      toast.info('Uploading photo…');
+      const ext = file.name.split('.').pop() ?? 'jpg';
+      const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+      const { error: uploadErr } = await supabase.storage
+        .from('images')
+        .upload(path, file, { contentType: file.type, upsert: false });
+
+      if (uploadErr) throw uploadErr;
+
+      const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(path);
+      setImageUrl(publicUrl);
+      toast.success('Photo uploaded successfully!');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Upload failed';
+      toast.error(`Upload error: ${msg}`);
     }
   };
+
 
   return (
     <div className="space-y-8 pb-16">

@@ -57,40 +57,60 @@ function CollectionPage() {
 
     async function fetchLiveData() {
       try {
-        const { data, error } = await supabase
+        // Step 1: Fetch all collections (no nested filter — PostgREST ignores them)
+        const { data: colData, error: colErr } = await supabase
           .from("collections")
-          .select(`
-            id, slug, name, tagline, description, cover_image_url, sort_order,
-            products (
-              id, name, price_cents, price_type, badge, is_featured, rating, review_count, sort_order,
-              product_images ( image_url, is_primary )
-            )
-          `)
+          .select("id, slug, name, tagline, description, cover_image_url, sort_order")
           .is("deleted_at", null)
-          .eq("products.status", "published")
-          .is("products.deleted_at", null)
           .order("sort_order", { ascending: true });
 
-        if (error || !data) return;
+        if (colErr || !colData) return;
 
-        const mapped: Collection[] = data.map((c: any) => ({
+        // Step 2: Fetch only published products with their images
+        const { data: prodData, error: prodErr } = await supabase
+          .from("products")
+          .select(`
+            id, name, collection_id, price_cents, price_type,
+            badge, is_featured, status, rating, review_count, sort_order,
+            product_images ( image_url, is_primary )
+          `)
+          .eq("status", "published")
+          .is("deleted_at", null)
+          .order("sort_order", { ascending: true });
+
+        if (prodErr) return;
+
+        const products = (prodData || []) as any[];
+
+        // Group products by collection_id
+        const byCollection: Record<string, any[]> = {};
+        for (const p of products) {
+          if (!byCollection[p.collection_id]) byCollection[p.collection_id] = [];
+          byCollection[p.collection_id]!.push(p);
+        }
+
+        const mapped: Collection[] = colData.map((c: any) => ({
           slug: c.slug,
           name: c.name,
           image: c.cover_image_url,
           tagline: c.tagline,
           description: c.description,
-          products: (c.products || []).map((p: any): Product => {
+          products: (byCollection[c.id] || []).map((p: any): Product => {
             const primaryImg =
               p.product_images?.find((i: any) => i.is_primary) ?? p.product_images?.[0];
             const prefix = p.price_type === "starting_from" ? "From " : "";
+            const price =
+              !p.price_cents || p.price_type === "on_request"
+                ? "Price on request"
+                : `${prefix}₹${p.price_cents.toLocaleString("en-IN")}`;
             return {
               name: p.name,
               image: primaryImg?.image_url ?? "",
-              price: `${prefix}₹${p.price_cents.toLocaleString("en-IN")}`,
+              price,
               rating: p.rating ?? 5.0,
               reviews: p.review_count ?? 0,
-              badge: p.badge ?? undefined,
-            };
+              ...(p.badge ? { badge: p.badge } : {}),
+            } as Product;
           }),
         }));
 
