@@ -1,9 +1,34 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { Reveal } from "./reveal";
-import { collections } from "@/data/collections";
+import { useSupabaseCollections } from "@/hooks/use-supabase-collections";
+
+/** Skeleton card shown while data loads */
+function CollectionSkeleton() {
+  return (
+    <div className="rounded-[32px] bg-secondary overflow-hidden animate-pulse">
+      <div className="aspect-[4/5] bg-stone-200/30" />
+      <div className="px-6 py-5 flex items-center gap-3">
+        <div className="h-3 bg-stone-300/30 rounded flex-1" />
+        <div className="h-3 w-3 bg-stone-300/30 rounded" />
+      </div>
+    </div>
+  );
+}
 
 export function CollectionsGrid() {
+  const { collections, loading } = useSupabaseCollections();
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <CollectionSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {collections.map((collection, index) => (
@@ -24,7 +49,8 @@ export function CollectionsGrid() {
               <div className="absolute inset-x-0 bottom-0 p-6 text-center">
                 <p className="font-display text-2xl text-primary-foreground">{collection.name}</p>
                 <p className="mt-1 text-[11px] tracking-[0.2em] text-primary-foreground/75 uppercase">
-                  {collection.products.length} {collection.products.length === 1 ? "piece" : "pieces"}
+                  {collection.products.length}{" "}
+                  {collection.products.length === 1 ? "piece" : "pieces"}
                 </p>
               </div>
             </div>

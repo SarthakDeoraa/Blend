@@ -10,13 +10,65 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminAccountRouteImport } from './routes/admin.account'
+import { Route as AdminAuditLogRouteImport } from './routes/admin.audit-log'
+import { Route as AdminHelpRouteImport } from './routes/admin.help'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminTrashRouteImport } from './routes/admin.trash'
 import { Route as CollectionsIndexRouteImport } from './routes/collections.index'
 import { Route as CollectionsSlugRouteImport } from './routes/collections.$slug'
+import { Route as AdminCollectionsIndexRouteImport } from './routes/admin.collections.index'
+import { Route as AdminCollectionsNewRouteImport } from './routes/admin.collections.new'
+import { Route as AdminProductsIndexRouteImport } from './routes/admin.products.index'
+import { Route as AdminProductsNewRouteImport } from './routes/admin.products.new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAccountRoute = AdminAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
+  id: '/audit-log',
+  path: '/audit-log',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminHelpRoute = AdminHelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTrashRoute = AdminTrashRouteImport.update({
+  id: '/trash',
+  path: '/trash',
+  getParentRoute: () => AdminRoute,
 } as any)
 const CollectionsIndexRoute = CollectionsIndexRouteImport.update({
   id: '/collections/',
@@ -28,33 +80,134 @@ const CollectionsSlugRoute = CollectionsSlugRouteImport.update({
   path: '/collections/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminCollectionsIndexRoute = AdminCollectionsIndexRouteImport.update({
+  id: '/collections/',
+  path: '/collections/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCollectionsNewRoute = AdminCollectionsNewRouteImport.update({
+  id: '/collections/new',
+  path: '/collections/new',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminProductsIndexRoute = AdminProductsIndexRouteImport.update({
+  id: '/products/',
+  path: '/products/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminProductsNewRoute = AdminProductsNewRouteImport.update({
+  id: '/products/new',
+  path: '/products/new',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/admin/account': typeof AdminAccountRoute
+  '/admin/audit-log': typeof AdminAuditLogRoute
+  '/admin/help': typeof AdminHelpRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/trash': typeof AdminTrashRoute
   '/collections/$slug': typeof CollectionsSlugRoute
+  '/admin/': typeof AdminIndexRoute
   '/collections/': typeof CollectionsIndexRoute
+  '/admin/collections/new': typeof AdminCollectionsNewRoute
+  '/admin/products/new': typeof AdminProductsNewRoute
+  '/admin/collections/': typeof AdminCollectionsIndexRoute
+  '/admin/products/': typeof AdminProductsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin/account': typeof AdminAccountRoute
+  '/admin/audit-log': typeof AdminAuditLogRoute
+  '/admin/help': typeof AdminHelpRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/trash': typeof AdminTrashRoute
   '/collections/$slug': typeof CollectionsSlugRoute
+  '/admin': typeof AdminIndexRoute
   '/collections': typeof CollectionsIndexRoute
+  '/admin/collections/new': typeof AdminCollectionsNewRoute
+  '/admin/products/new': typeof AdminProductsNewRoute
+  '/admin/collections': typeof AdminCollectionsIndexRoute
+  '/admin/products': typeof AdminProductsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/admin/account': typeof AdminAccountRoute
+  '/admin/audit-log': typeof AdminAuditLogRoute
+  '/admin/help': typeof AdminHelpRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/trash': typeof AdminTrashRoute
   '/collections/$slug': typeof CollectionsSlugRoute
+  '/admin/': typeof AdminIndexRoute
   '/collections/': typeof CollectionsIndexRoute
+  '/admin/collections/new': typeof AdminCollectionsNewRoute
+  '/admin/products/new': typeof AdminProductsNewRoute
+  '/admin/collections/': typeof AdminCollectionsIndexRoute
+  '/admin/products/': typeof AdminProductsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/collections/$slug' | '/collections/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/admin/account'
+    | '/admin/audit-log'
+    | '/admin/help'
+    | '/admin/login'
+    | '/admin/settings'
+    | '/admin/trash'
+    | '/collections/$slug'
+    | '/admin/'
+    | '/collections/'
+    | '/admin/collections/new'
+    | '/admin/products/new'
+    | '/admin/collections/'
+    | '/admin/products/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/collections/$slug' | '/collections'
-  id: '__root__' | '/' | '/collections/$slug' | '/collections/'
+  to:
+    | '/'
+    | '/admin/account'
+    | '/admin/audit-log'
+    | '/admin/help'
+    | '/admin/login'
+    | '/admin/settings'
+    | '/admin/trash'
+    | '/collections/$slug'
+    | '/admin'
+    | '/collections'
+    | '/admin/collections/new'
+    | '/admin/products/new'
+    | '/admin/collections'
+    | '/admin/products'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/admin/account'
+    | '/admin/audit-log'
+    | '/admin/help'
+    | '/admin/login'
+    | '/admin/settings'
+    | '/admin/trash'
+    | '/collections/$slug'
+    | '/admin/'
+    | '/collections/'
+    | '/admin/collections/new'
+    | '/admin/products/new'
+    | '/admin/collections/'
+    | '/admin/products/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   CollectionsSlugRoute: typeof CollectionsSlugRoute
   CollectionsIndexRoute: typeof CollectionsIndexRoute
 }
@@ -67,6 +220,62 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/account': {
+      id: '/admin/account'
+      path: '/account'
+      fullPath: '/admin/account'
+      preLoaderRoute: typeof AdminAccountRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/audit-log': {
+      id: '/admin/audit-log'
+      path: '/audit-log'
+      fullPath: '/admin/audit-log'
+      preLoaderRoute: typeof AdminAuditLogRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/help': {
+      id: '/admin/help'
+      path: '/help'
+      fullPath: '/admin/help'
+      preLoaderRoute: typeof AdminHelpRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/trash': {
+      id: '/admin/trash'
+      path: '/trash'
+      fullPath: '/admin/trash'
+      preLoaderRoute: typeof AdminTrashRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/collections/': {
       id: '/collections/'
@@ -82,11 +291,70 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CollectionsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/collections/': {
+      id: '/admin/collections/'
+      path: '/collections'
+      fullPath: '/admin/collections/'
+      preLoaderRoute: typeof AdminCollectionsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/collections/new': {
+      id: '/admin/collections/new'
+      path: '/collections/new'
+      fullPath: '/admin/collections/new'
+      preLoaderRoute: typeof AdminCollectionsNewRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/products/': {
+      id: '/admin/products/'
+      path: '/products'
+      fullPath: '/admin/products/'
+      preLoaderRoute: typeof AdminProductsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/products/new': {
+      id: '/admin/products/new'
+      path: '/products/new'
+      fullPath: '/admin/products/new'
+      preLoaderRoute: typeof AdminProductsNewRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
+interface AdminRouteChildren {
+  AdminAccountRoute: typeof AdminAccountRoute
+  AdminAuditLogRoute: typeof AdminAuditLogRoute
+  AdminHelpRoute: typeof AdminHelpRoute
+  AdminLoginRoute: typeof AdminLoginRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminTrashRoute: typeof AdminTrashRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+  AdminCollectionsNewRoute: typeof AdminCollectionsNewRoute
+  AdminProductsNewRoute: typeof AdminProductsNewRoute
+  AdminCollectionsIndexRoute: typeof AdminCollectionsIndexRoute
+  AdminProductsIndexRoute: typeof AdminProductsIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminAccountRoute: AdminAccountRoute,
+  AdminAuditLogRoute: AdminAuditLogRoute,
+  AdminHelpRoute: AdminHelpRoute,
+  AdminLoginRoute: AdminLoginRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminTrashRoute: AdminTrashRoute,
+  AdminIndexRoute: AdminIndexRoute,
+  AdminCollectionsNewRoute: AdminCollectionsNewRoute,
+  AdminProductsNewRoute: AdminProductsNewRoute,
+  AdminCollectionsIndexRoute: AdminCollectionsIndexRoute,
+  AdminProductsIndexRoute: AdminProductsIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   CollectionsSlugRoute: CollectionsSlugRoute,
   CollectionsIndexRoute: CollectionsIndexRoute,
 }

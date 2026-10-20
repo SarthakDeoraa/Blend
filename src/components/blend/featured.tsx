@@ -1,16 +1,6 @@
-import { Star, Plus } from "lucide-react";
-import p1 from "@/assets/p1.jpg";
-import p2 from "@/assets/p2.jpg";
-import p3 from "@/assets/p3.jpg";
-import p4 from "@/assets/p4.jpg";
+import { Star } from "lucide-react";
 import { Reveal } from "./reveal";
-
-const products = [
-  { name: "Olive River Serving Board", image: p1, price: "₹4,850", rating: 4.9, reviews: 128, badge: "Bestseller", tone: "accent" as const },
-  { name: "Agate Geode Wall Clock", image: p2, price: "₹7,200", rating: 4.8, reviews: 94, badge: "Save 15%", tone: "olive" as const },
-  { name: "Moss Marble Coasters, Set of 4", image: p3, price: "₹1,950", rating: 5.0, reviews: 212, badge: null, tone: "accent" as const },
-  { name: "Onyx & Clay Bookend Pair", image: p4, price: "₹3,400", rating: 4.7, reviews: 61, badge: "New", tone: "olive" as const },
-];
+import { useFeaturedProducts } from "@/hooks/use-supabase-collections";
 
 function Rating({ value }: { value: number }) {
   return (
@@ -27,7 +17,22 @@ function Rating({ value }: { value: number }) {
   );
 }
 
+function FeaturedSkeleton() {
+  return (
+    <article className="animate-pulse">
+      <div className="aspect-square w-full rounded-3xl bg-stone-200/30" />
+      <div className="mt-5 space-y-2">
+        <div className="h-3 bg-stone-300/30 rounded w-3/4" />
+        <div className="h-3 bg-stone-300/30 rounded w-1/3" />
+        <div className="h-4 bg-stone-300/30 rounded w-1/4" />
+      </div>
+    </article>
+  );
+}
+
 export function Featured() {
+  const { products, loading } = useFeaturedProducts();
+
   return (
     <section id="collection" className="mx-auto max-w-7xl px-5 py-12 md:px-8 md:py-20">
       <Reveal className="mx-auto max-w-xl text-center">
@@ -43,50 +48,42 @@ export function Featured() {
       </Reveal>
 
       <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {products.map((product, index) => (
-          <Reveal key={product.name} delay={index * 110}>
-            <article className="group">
-              <div className="relative overflow-hidden rounded-3xl bg-secondary transition-shadow duration-700 hover:shadow-[var(--shadow-lift)]">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  loading="lazy"
-                  width={900}
-                  height={900}
-                  className="aspect-square w-full object-cover transition-transform duration-[1.1s] ease-out group-hover:scale-105"
-                />
-                {product.badge && (
-                  <span
-                    className={`absolute top-4 left-4 rounded-full px-3 py-1.5 text-[10px] font-semibold tracking-[0.14em] uppercase ${
-                      product.tone === "accent"
-                        ? "bg-accent text-accent-foreground"
-                        : "bg-olive text-olive-foreground"
-                    }`}
-                  >
-                    {product.badge}
-                  </span>
-                )}
-                <div className="absolute inset-x-3 bottom-3 translate-y-[130%] transition-transform duration-500 ease-out group-hover:translate-y-0">
-                  <button className="flex w-full items-center justify-center gap-2 rounded-full bg-primary/90 px-5 py-3.5 text-xs font-medium tracking-[0.14em] text-primary-foreground uppercase backdrop-blur-md transition-colors hover:bg-primary">
-                    <Plus size={14} strokeWidth={2} />
-                    Quick Add
-                  </button>
-                </div>
-              </div>
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <FeaturedSkeleton key={i} />
+            ))
+          : products.map((product, index) => (
+              <Reveal key={product.name} delay={index * 110}>
+                <article className="group">
+                  <div className="relative overflow-hidden rounded-3xl bg-secondary transition-shadow duration-700 hover:shadow-[var(--shadow-lift)]">
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      loading="lazy"
+                      width={900}
+                      height={900}
+                      className="aspect-square w-full object-cover transition-transform duration-[1.1s] ease-out group-hover:scale-105"
+                    />
+                    {product.badge && (
+                      <span className="absolute top-4 left-4 rounded-full px-3 py-1.5 text-[10px] font-semibold tracking-[0.14em] uppercase bg-accent text-accent-foreground">
+                        {product.badge}
+                      </span>
+                    )}
+                  </div>
 
-              <div className="mt-5">
-                <h3 className="font-sans text-sm font-medium tracking-tight">{product.name}</h3>
-                <div className="mt-2 flex items-center gap-2">
-                  <Rating value={product.rating} />
-                  <span className="text-[11px] text-muted-foreground">
-                    {product.rating} ({product.reviews})
-                  </span>
-                </div>
-                <p className="mt-2 font-display text-lg">{product.price}</p>
-              </div>
-            </article>
-          </Reveal>
-        ))}
+                  <div className="mt-5">
+                    <h3 className="font-sans text-sm font-medium tracking-tight">{product.name}</h3>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Rating value={product.rating} />
+                      <span className="text-[11px] text-muted-foreground">
+                        {product.rating} ({product.reviews})
+                      </span>
+                    </div>
+                    <p className="mt-2 font-display text-lg">{product.price}</p>
+                  </div>
+                </article>
+              </Reveal>
+            ))}
       </div>
     </section>
   );

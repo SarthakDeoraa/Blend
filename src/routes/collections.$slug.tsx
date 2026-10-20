@@ -1,16 +1,24 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import { SiteHeader } from "@/components/blend/header";
 import { SiteFooter } from "@/components/blend/footer";
 import { Reveal } from "@/components/blend/reveal";
 import { ProductCard } from "@/components/blend/product-card";
-import { collections, getCollection, type Collection, type Product } from "@/data/collections";
+import {
+  getCollection,
+  type Collection,
+  type Product,
+  collections as localCollections,
+} from "@/data/collections";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export const Route = createFileRoute("/collections/$slug")({
   loader: ({ params }) => {
+    // Use local data for SSR / initial load — Supabase fetch happens client-side
     const collection = getCollection(params.slug);
     if (!collection) throw notFound();
-    return { collection };
+    return { collection, slug: params.slug };
   },
   head: ({ loaderData }) => {
     if (!loaderData) {
@@ -35,8 +43,69 @@ export const Route = createFileRoute("/collections/$slug")({
 });
 
 function CollectionPage() {
-  const { collection } = Route.useLoaderData() as { collection: Collection };
-  const others = collections.filter((c) => c.slug !== collection.slug);
+  const { collection: initialCollection, slug } = Route.useLoaderData() as {
+    collection: Collection;
+    slug: string;
+  };
+
+  const [collection, setCollection] = useState<Collection>(initialCollection);
+  const [allCollections, setAllCollections] = useState<Collection[]>(localCollections);
+
+  // Fetch live data from Supabase client-side
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    async function fetchLiveData() {
+      try {
+        const { data, error } = await supabase
+          .from("collections")
+          .select(`
+            id, slug, name, tagline, description, cover_image_url, sort_order,
+            products (
+              id, name, price_cents, price_type, badge, is_featured, rating, review_count, sort_order,
+              product_images ( image_url, is_primary )
+            )
+          `)
+          .is("deleted_at", null)
+          .eq("products.status", "published")
+          .is("products.deleted_at", null)
+          .order("sort_order", { ascending: true });
+
+        if (error || !data) return;
+
+        const mapped: Collection[] = data.map((c: any) => ({
+          slug: c.slug,
+          name: c.name,
+          image: c.cover_image_url,
+          tagline: c.tagline,
+          description: c.description,
+          products: (c.products || []).map((p: any): Product => {
+            const primaryImg =
+              p.product_images?.find((i: any) => i.is_primary) ?? p.product_images?.[0];
+            const prefix = p.price_type === "starting_from" ? "From " : "";
+            return {
+              name: p.name,
+              image: primaryImg?.image_url ?? "",
+              price: `${prefix}₹${p.price_cents.toLocaleString("en-IN")}`,
+              rating: p.rating ?? 5.0,
+              reviews: p.review_count ?? 0,
+              badge: p.badge ?? undefined,
+            };
+          }),
+        }));
+
+        setAllCollections(mapped);
+        const live = mapped.find((c) => c.slug === slug);
+        if (live) setCollection(live);
+      } catch (err) {
+        console.error("Failed to load live collection:", err);
+      }
+    }
+
+    fetchLiveData();
+  }, [slug]);
+
+  const others = allCollections.filter((c) => c.slug !== collection.slug);
 
   return (
     <div className="min-h-screen bg-background">
@@ -70,7 +139,7 @@ function CollectionPage() {
 
           <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {collection.products.map((product: Product, index: number) => (
-              <Reveal key={product.name} delay={index * 100}>
+              <Reveal key={product.name + index} delay={index * 100}>
                 <ProductCard product={product} />
               </Reveal>
             ))}

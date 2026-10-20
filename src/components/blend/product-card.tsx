@@ -1,4 +1,4 @@
-import { Star, Plus } from "lucide-react";
+import { Star } from "lucide-react";
 import type { Product } from "@/data/collections";
 
 function Rating({ value }: { value: number }) {
@@ -33,12 +33,6 @@ export function ProductCard({ product }: { product: Product }) {
             {product.badge}
           </span>
         )}
-        <div className="absolute inset-x-3 bottom-3 translate-y-[130%] transition-transform duration-500 ease-out group-hover:translate-y-0">
-          <button className="flex w-full items-center justify-center gap-2 rounded-full bg-primary/90 px-5 py-3.5 text-xs font-medium tracking-[0.14em] text-primary-foreground uppercase backdrop-blur-md transition-colors hover:bg-primary">
-            <Plus size={14} strokeWidth={2} />
-            Quick Add
-          </button>
-        </div>
       </div>
 
       <div className="mt-5">
