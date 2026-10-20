@@ -364,8 +364,7 @@ function AdminProductsPage() {
 
                     {/* Price */}
                     <td className="py-3 px-4 font-mono">
-                      {product.discount_percent &&
-                      product.discount_percent > 0 &&
+                      {(product.discount_percent ?? 0) > 0 &&
                       product.price_type !== "on_request" ? (
                         <div>
                           <div className="flex items-baseline gap-2">

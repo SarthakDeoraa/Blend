@@ -453,11 +453,11 @@ function NewProductPage() {
               <h2 className="text-sm font-semibold text-stone-200 uppercase tracking-wider">
                 Pricing Details (INR ₹)
               </h2>
-              {numDiscount > 0 && priceType !== "on_request" && (
+              {numDiscount > 0 && priceType !== "on_request" ? (
                 <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
                   {numDiscount}% Discount Active
                 </span>
-              )}
+              ) : null}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -505,11 +505,11 @@ function NewProductPage() {
                       <Label htmlFor="discountPercent" className="text-xs text-stone-300">
                         Discount Option (%)
                       </Label>
-                      {numDiscount > 0 && (
+                      {numDiscount > 0 ? (
                         <span className="text-[11px] text-emerald-400 font-medium">
                           {numDiscount}% off
                         </span>
-                      )}
+                      ) : null}
                     </div>
                     <div className="relative">
                       <Input
@@ -703,18 +703,18 @@ function NewProductPage() {
                         ? formattedDiscountedPrice
                         : formattedPrice}
                     </span>
-                    {numDiscount > 0 && priceType !== "on_request" && (
+                    {numDiscount > 0 && priceType !== "on_request" ? (
                       <span className="text-xs text-stone-500 line-through font-mono">
                         {formattedPrice}
                       </span>
-                    )}
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-1.5">
-                    {numDiscount > 0 && priceType !== "on_request" && (
+                    {numDiscount > 0 && priceType !== "on_request" ? (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-semibold border border-emerald-500/25">
                         {numDiscount}% OFF
                       </span>
-                    )}
+                    ) : null}
                     <span className="text-[10px] px-2 py-0.5 rounded-md bg-stone-800 text-stone-300">
                       {status === "published" ? "Active" : "Draft"}
                     </span>

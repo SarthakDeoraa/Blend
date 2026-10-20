@@ -83,16 +83,16 @@ export function Featured() {
                     </div>
                     <div className="mt-2 flex items-baseline gap-2 flex-wrap">
                       <p className="font-display text-lg">{product.price}</p>
-                      {product.originalPrice && (
+                      {product.originalPrice ? (
                         <p className="text-sm font-sans text-muted-foreground/75 line-through decoration-stone-400">
                           {product.originalPrice}
                         </p>
-                      )}
-                      {product.discountPercent && product.discountPercent > 0 && (
+                      ) : null}
+                      {(product.discountPercent ?? 0) > 0 ? (
                         <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                           {product.discountPercent}% OFF
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 </article>
