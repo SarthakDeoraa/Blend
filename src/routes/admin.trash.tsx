@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Trash2, RotateCcw, AlertTriangle, CheckCircle, Package } from 'lucide-react';
+import { Trash2, RotateCcw, AlertTriangle, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { formatINR } from '@/lib/price';
 
 export const Route = createFileRoute('/admin/trash')({
   head: () => ({
@@ -23,32 +25,103 @@ interface TrashedItem {
 }
 
 function AdminTrashPage() {
-  const [trashedItems, setTrashedItems] = useState<TrashedItem[]>([
-    {
-      id: 'sample-1',
-      name: 'Archived Wave Board Sample',
-      type: 'product',
-      deleted_at: '2 days ago',
-      price: '₹3,400',
-    },
-  ]);
+  const [trashedItems, setTrashedItems] = useState<TrashedItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleRestore = (item: TrashedItem) => {
-    setTrashedItems(trashedItems.filter((i) => i.id !== item.id));
-    toast.success(`Restored "${item.name}" back to active catalogue!`);
-  };
+  const loadTrash = async () => {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
 
-  const handlePermanentDelete = (item: TrashedItem) => {
-    if (confirm(`Are you completely sure you want to permanently delete "${item.name}"? This cannot be undone.`)) {
-      setTrashedItems(trashedItems.filter((i) => i.id !== item.id));
-      toast.success(`"${item.name}" deleted permanently.`);
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, price_cents, price_type, deleted_at')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formatted: TrashedItem[] = (data || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        type: 'product',
+        deleted_at: p.deleted_at ? new Date(p.deleted_at).toLocaleDateString() : 'Recently',
+        price: formatINR(p.price_cents, p.price_type),
+      }));
+
+      setTrashedItems(formatted);
+    } catch (err) {
+      console.error('Failed to load trash from Supabase:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleEmptyTrash = () => {
-    if (confirm('Are you sure you want to empty the trash bin? All items will be permanently erased.')) {
+  useEffect(() => {
+    loadTrash();
+  }, []);
+
+  const handleRestore = async (item: TrashedItem) => {
+    try {
+      if (isSupabaseConfigured) {
+        const { error } = await supabase
+          .from('products')
+          .update({ deleted_at: null })
+          .eq('id', item.id);
+
+        if (error) throw error;
+      }
+
+      setTrashedItems((prev) => prev.filter((i) => i.id !== item.id));
+      toast.success(`Restored "${item.name}" back to active catalogue!`);
+    } catch (err) {
+      console.error('Failed to restore item:', err);
+      toast.error('Failed to restore item');
+    }
+  };
+
+  const handlePermanentDelete = async (item: TrashedItem) => {
+    if (!confirm(`Are you completely sure you want to permanently delete "${item.name}"? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      if (isSupabaseConfigured) {
+        // Also remove associated images
+        await supabase.from('product_images').delete().eq('product_id', item.id);
+        const { error } = await supabase.from('products').delete().eq('id', item.id);
+        if (error) throw error;
+      }
+
+      setTrashedItems((prev) => prev.filter((i) => i.id !== item.id));
+      toast.success(`"${item.name}" deleted permanently.`);
+    } catch (err) {
+      console.error('Failed to permanently delete item:', err);
+      toast.error('Failed to delete item');
+    }
+  };
+
+  const handleEmptyTrash = async () => {
+    if (!confirm('Are you sure you want to empty the trash bin? All items will be permanently erased.')) {
+      return;
+    }
+
+    try {
+      if (isSupabaseConfigured && trashedItems.length > 0) {
+        const ids = trashedItems.map((i) => i.id);
+        await supabase.from('product_images').delete().in('product_id', ids);
+        const { error } = await supabase.from('products').delete().in('id', ids);
+        if (error) throw error;
+      }
+
       setTrashedItems([]);
       toast.success('Trash emptied.');
+    } catch (err) {
+      console.error('Failed to empty trash:', err);
+      toast.error('Failed to empty trash');
     }
   };
 
@@ -74,12 +147,17 @@ function AdminTrashPage() {
         )}
       </div>
 
-      {trashedItems.length === 0 ? (
+      {loading ? (
+        <div className="p-16 text-center text-stone-400 text-sm">
+          <span className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin inline-block mb-3" />
+          <p>Loading trashed items…</p>
+        </div>
+      ) : trashedItems.length === 0 ? (
         <div className="p-16 text-center bg-stone-900/40 border border-stone-800 rounded-3xl">
           <Trash2 size={40} className="mx-auto mb-3 text-stone-600" />
           <h3 className="text-base font-medium text-stone-200">The trash bin is empty</h3>
           <p className="text-xs text-stone-500 mt-1">
-            Whenever you delete a product or category, it waits here safely so you can restore it anytime.
+            Whenever you delete a product, it waits here safely so you can restore it anytime.
           </p>
         </div>
       ) : (
@@ -102,7 +180,7 @@ function AdminTrashPage() {
                   <div>
                     <h4 className="text-sm font-medium text-stone-200">{item.name}</h4>
                     <p className="text-xs text-stone-500 mt-0.5">
-                      Deleted {item.deleted_at} &bull; {item.price || 'Category'}
+                      Deleted {item.deleted_at} &bull; {item.price || 'Item'}
                     </p>
                   </div>
                 </div>

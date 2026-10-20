@@ -71,7 +71,7 @@ function AdminCollectionsPage() {
             description,
             image_url,
             status,
-            products (id)
+            products (id, deleted_at)
           `)
           .is('deleted_at', null)
           .order('sort_order', { ascending: true });
@@ -86,7 +86,7 @@ function AdminCollectionsPage() {
             tagline: c.tagline,
             description: c.description,
             image_url: c.image_url || '/assets/cat-table.jpg',
-            product_count: c.products?.length || 0,
+            product_count: c.products?.filter((p: any) => !p.deleted_at).length || 0,
             status: c.status,
           }))
         );

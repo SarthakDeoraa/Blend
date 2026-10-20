@@ -165,23 +165,44 @@ function AdminProductsPage() {
     });
   }, [products, searchQuery, selectedCollection, statusFilter]);
 
-  const handleDelete = (id: string, name: string) => {
+  const handleDelete = async (id: string, name: string) => {
     // Soft delete with 5-second undo toast
     const prev = [...products];
     setProducts(products.filter((p) => p.id !== id));
 
-    toast(`Deleted "${name}"`, {
-      description: 'Item moved to Trash.',
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          setProducts(prev);
-          toast.success(`Restored "${name}"`);
+    try {
+      if (isSupabaseConfigured) {
+        const { error } = await supabase
+          .from('products')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', id);
+        if (error) throw error;
+      }
+
+      toast(`Deleted "${name}"`, {
+        description: 'Item moved to Trash.',
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            setProducts(prev);
+            if (isSupabaseConfigured) {
+              await supabase
+                .from('products')
+                .update({ deleted_at: null })
+                .eq('id', id);
+            }
+            toast.success(`Restored "${name}"`);
+          },
         },
-      },
-      duration: 5000,
-    });
+        duration: 5000,
+      });
+    } catch (err) {
+      console.error('Failed to delete product:', err);
+      toast.error('Failed to delete product from database');
+      setProducts(prev);
+    }
   };
+
 
   return (
     <div className="space-y-6 pb-12">
@@ -340,7 +361,7 @@ function AdminProductsPage() {
                     {/* Actions */}
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Link to={`/admin/products/new`}>
+                        <Link to="/admin/products/new" search={{ id: product.id }}>
                           <Button
                             variant="ghost"
                             size="sm"

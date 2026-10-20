@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import {
   ArrowLeft,
@@ -19,9 +19,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 
 export const Route = createFileRoute('/admin/products/new')({
+  validateSearch: (search: Record<string, unknown>): { id?: string | undefined } => ({
+    id: (search['id'] as string) || undefined,
+  }),
   head: () => ({
     meta: [
-      { title: 'New Product — Blend Admin' },
+      { title: 'Product Editor — Blend Admin' },
       { name: 'robots', content: 'noindex, nofollow' },
     ],
   }),
@@ -30,6 +33,9 @@ export const Route = createFileRoute('/admin/products/new')({
 
 function NewProductPage() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
+  const editId = search?.id;
+  const isEditing = Boolean(editId);
 
   const [name, setName] = useState('');
   const [collection, setCollection] = useState('wall-art');
@@ -40,8 +46,55 @@ function NewProductPage() {
   const [isFeatured, setIsFeatured] = useState(false);
   const [availability, setAvailability] = useState<'available' | 'sold' | 'made_to_order'>('available');
   const [status, setStatus] = useState<'published' | 'draft'>('published');
-  const [imageUrl, setImageUrl] = useState<string>('/assets/cat-table.jpg');
+  const [imageUrl, setImageUrl] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+  const [loadingData, setLoadingData] = useState(isEditing);
+
+  // Load existing product if in edit mode
+  useEffect(() => {
+    if (!editId || !isSupabaseConfigured) return;
+
+    async function loadProduct() {
+      try {
+        setLoadingData(true);
+        const { data, error } = await supabase
+          .from('products')
+          .select(`
+            id, name, description, price_cents, price_type, badge, is_featured,
+            availability, status, collection_id,
+            collections ( slug ),
+            product_images ( image_url, is_primary )
+          `)
+          .eq('id', editId)
+          .single();
+
+        if (error || !data) throw error;
+
+        setName(data.name || '');
+        setDescription(data.description || '');
+        setPriceRupees(String((data.price_cents || 0) / 100));
+        setPriceType(data.price_type || 'fixed');
+        setBadge(data.badge || '');
+        setIsFeatured(Boolean(data.is_featured));
+        setAvailability(data.availability || 'available');
+        setStatus(data.status || 'published');
+        if ((data as any).collections?.slug) {
+          setCollection((data as any).collections.slug);
+        }
+        const img = data.product_images?.find((i: any) => i.is_primary) ?? data.product_images?.[0];
+        if (img?.image_url) {
+          setImageUrl(img.image_url);
+        }
+      } catch (err) {
+        console.error('Failed to load product for editing:', err);
+        toast.error('Could not load product details');
+      } finally {
+        setLoadingData(false);
+      }
+    }
+
+    loadProduct();
+  }, [editId]);
 
   // Live preview calculations
   const priceCents = (parseFloat(priceRupees) || 0) * 100;
@@ -59,15 +112,73 @@ function NewProductPage() {
 
     if (isSupabaseConfigured) {
       try {
-        // Find collection id
+        // Find collection id by slug
         const { data: col } = await supabase
           .from('collections')
           .select('id')
           .eq('slug', collection)
           .single();
 
-        if (col) {
-          const { data: prod, error } = await supabase.from('products').insert({
+        if (!col) {
+          toast.error('Selected collection not found in database');
+          setSubmitting(false);
+          return;
+        }
+
+        if (isEditing && editId) {
+          // UPDATE existing product
+          const { error: updateErr } = await supabase
+            .from('products')
+            .update({
+              collection_id: col.id,
+              name: name.trim(),
+              description: description.trim(),
+              price_cents: priceCents,
+              price_type: priceType,
+              badge: badge || null,
+              is_featured: isFeatured,
+              status: status,
+              availability: availability,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', editId);
+
+          if (updateErr) throw updateErr;
+
+          // Update image if available
+          if (imageUrl) {
+            const { data: existingImgs } = await supabase
+              .from('product_images')
+              .select('id')
+              .eq('product_id', editId)
+              .order('is_primary', { ascending: false })
+              .limit(1);
+
+            const primaryImg = existingImgs?.[0];
+            if (primaryImg) {
+              await supabase
+                .from('product_images')
+                .update({ image_url: imageUrl })
+                .eq('id', primaryImg.id);
+            } else {
+              await supabase.from('product_images').insert({
+                product_id: editId,
+                image_url: imageUrl,
+                is_primary: true,
+                sort_order: 1,
+              });
+            }
+          }
+
+          toast.success(`"${name}" updated successfully!`);
+          navigate({ to: '/admin/products' });
+          return;
+        }
+
+        // INSERT new product
+        const { data: prod, error } = await supabase
+          .from('products')
+          .insert({
             collection_id: col.id,
             name: name.trim(),
             description: description.trim(),
@@ -79,26 +190,35 @@ function NewProductPage() {
             availability: availability,
             rating: 5.0,
             review_count: 0,
-          }).select().single();
+          })
+          .select()
+          .single();
 
-          if (error) throw error;
+        if (error) throw error;
 
-          if (prod && imageUrl) {
-            await supabase.from('product_images').insert({
-              product_id: prod.id,
-              image_url: imageUrl,
-              is_primary: true,
-              sort_order: 1,
-            });
-          }
+        if (prod && imageUrl) {
+          await supabase.from('product_images').insert({
+            product_id: prod.id,
+            image_url: imageUrl,
+            is_primary: true,
+            sort_order: 1,
+          });
         }
-      } catch (err) {
-        console.error('Error saving product to Supabase:', err);
-      }
-    }
 
-    toast.success(`"${name}" saved successfully!`);
-    navigate({ to: '/admin/products' });
+        toast.success(`"${name}" saved successfully!`);
+        navigate({ to: '/admin/products' });
+        return;
+      } catch (err: unknown) {
+        console.error('Error saving product to Supabase:', err);
+        const msg = err instanceof Error ? err.message : 'Database error';
+        toast.error(`Save failed: ${msg}`);
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      toast.info(`"${name}" saved (Supabase not configured)`);
+      navigate({ to: '/admin/products' });
+    }
   };
 
   const handleImageUploadPlaceholder = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,12 +236,12 @@ function NewProductPage() {
     reader.readAsDataURL(file);
 
     if (!isSupabaseConfigured) {
-      toast.success('Photo ready for preview (Supabase not configured — URL will be local only)');
+      toast.success('Photo ready for preview');
       return;
     }
 
     try {
-      toast.info('Uploading photo…');
+      toast.info('Uploading photo to storage…');
       const ext = file.name.split('.').pop() ?? 'jpg';
       const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
@@ -131,7 +251,10 @@ function NewProductPage() {
 
       if (uploadErr) throw uploadErr;
 
-      const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(path);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('images').getPublicUrl(path);
+
       setImageUrl(publicUrl);
       toast.success('Photo uploaded successfully!');
     } catch (err: unknown) {
@@ -140,6 +263,14 @@ function NewProductPage() {
     }
   };
 
+  if (loadingData) {
+    return (
+      <div className="py-24 text-center text-stone-400 text-sm">
+        <span className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin inline-block mb-3" />
+        <p>Loading product details…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-16">
@@ -152,8 +283,14 @@ function NewProductPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="font-serif text-2xl font-semibold text-stone-100">Add New Product</h1>
-            <p className="text-xs text-stone-400 mt-0.5">Create a new resin or timber art piece</p>
+            <h1 className="font-serif text-2xl font-semibold text-stone-100">
+              {isEditing ? 'Edit Piece' : 'Add New Product'}
+            </h1>
+            <p className="text-xs text-stone-400 mt-0.5">
+              {isEditing
+                ? 'Update specifications, collection category, and pricing'
+                : 'Create a new resin or timber art piece'}
+            </p>
           </div>
         </div>
 
@@ -169,7 +306,7 @@ function NewProductPage() {
             className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold rounded-xl text-xs flex items-center gap-2 px-5 h-10 shadow-lg shadow-amber-950/20"
           >
             <Save size={15} />
-            <span>Save & Publish</span>
+            <span>{isEditing ? 'Save Changes' : 'Save & Publish'}</span>
           </Button>
         </div>
       </div>
@@ -180,20 +317,20 @@ function NewProductPage() {
           {/* Main Info */}
           <div className="bg-stone-900/60 border border-stone-800 p-6 rounded-2xl space-y-4">
             <h2 className="text-sm font-semibold text-stone-200 uppercase tracking-wider">
-              General Information
+              Essential Details
             </h2>
 
             <div className="space-y-1.5">
-              <Label htmlFor="prodName" className="text-xs text-stone-300">
+              <Label htmlFor="name" className="text-xs text-stone-300">
                 Product Title <span className="text-amber-400">*</span>
               </Label>
               <Input
-                id="prodName"
+                id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Ocean Drift Resin Table"
-                required
+                placeholder="e.g. Cerulean Wave Resin Wall Panel"
                 className="h-11 bg-stone-950/70 border-stone-800 text-stone-100 rounded-xl"
+                required
               />
             </div>
 
@@ -324,7 +461,7 @@ function NewProductPage() {
                   Click to choose a photo from your computer or phone
                 </p>
                 <p className="text-xs text-stone-500 mt-1">
-                  Supports JPEG, PNG, or WebP up to 5 MB
+                  Supports JPEG, PNG, or WebP up to 10 MB (stored in Supabase Storage)
                 </p>
               </label>
             </div>
@@ -348,8 +485,8 @@ function NewProductPage() {
                   className="w-full h-11 px-3 bg-stone-950/70 border border-stone-800 text-stone-200 text-sm rounded-xl"
                 >
                   <option value="available">Ready to Ship / Available</option>
-                  <option value="made_to_order">Made to Order / Commission</option>
-                  <option value="sold">Sold Out</option>
+                  <option value="made_to_order">Made to Order (2-3 weeks)</option>
+                  <option value="sold">Sold Out / Archive</option>
                 </select>
               </div>
 
@@ -363,85 +500,86 @@ function NewProductPage() {
                   onChange={(e) => setStatus(e.target.value as any)}
                   className="w-full h-11 px-3 bg-stone-950/70 border border-stone-800 text-stone-200 text-sm rounded-xl"
                 >
-                  <option value="published">Published (Visible immediately)</option>
-                  <option value="draft">Draft (Hidden from public)</option>
+                  <option value="published">Published (Visible to Visitors)</option>
+                  <option value="draft">Draft (Private in Studio)</option>
                 </select>
               </div>
             </div>
 
-            {/* Featured Switch */}
             <div className="pt-2 flex items-center justify-between p-3.5 bg-stone-950/60 border border-stone-800/80 rounded-xl">
               <div className="flex items-center gap-3">
-                <Sparkles size={18} className="text-amber-400" />
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                  <Sparkles size={16} />
+                </div>
                 <div>
                   <p className="text-xs font-medium text-stone-200">Feature on Homepage</p>
-                  <p className="text-[11px] text-stone-400">Include this piece in the Featured Curations carousel</p>
+                  <p className="text-[11px] text-stone-400">Display this piece in the curated showcase on the front page</p>
                 </div>
               </div>
               <input
                 type="checkbox"
+                id="isFeatured"
                 checked={isFeatured}
                 onChange={(e) => setIsFeatured(e.target.checked)}
-                className="w-5 h-5 rounded border-stone-700 text-amber-500 focus:ring-amber-500 bg-stone-900"
+                className="w-4 h-4 rounded text-amber-500 focus:ring-amber-500 bg-stone-900 border-stone-700"
               />
             </div>
           </div>
         </form>
 
-        {/* Live Preview Column */}
+        {/* Live Public Card Preview */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="sticky top-6 space-y-4">
+          <div className="sticky top-24 space-y-4">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-stone-400">
-              <Eye size={15} className="text-amber-400" />
-              <span>Live Card Preview (Public Website)</span>
+              <Eye size={14} className="text-amber-400" />
+              <span>Visitor Card Preview</span>
             </div>
 
-            {/* Blend Product Card Preview */}
-            <div className="bg-stone-900/80 border border-stone-800 p-4 rounded-3xl shadow-2xl">
-              <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-stone-800">
-                <img
-                  src={imageUrl}
-                  alt={name || 'Preview Product'}
-                  className="h-full w-full object-cover"
-                />
+            <div className="bg-stone-900/80 border border-stone-800/80 rounded-3xl p-5 shadow-2xl backdrop-blur-sm">
+              <div className="relative aspect-square rounded-2xl overflow-hidden bg-stone-950 border border-stone-800 flex items-center justify-center">
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt={name || 'Preview'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="text-center text-stone-600">
+                    <ImageIcon size={40} className="mx-auto mb-2 opacity-40" />
+                    <p className="text-xs">No photo selected</p>
+                  </div>
+                )}
                 {badge && (
-                  <span className="absolute left-3 top-3 rounded-full bg-stone-900/80 backdrop-blur-md px-3 py-1 text-[10px] font-medium tracking-wider text-amber-200 uppercase border border-amber-500/20">
+                  <span className="absolute top-3 left-3 px-3 py-1 bg-amber-500 text-stone-950 text-[10px] font-bold uppercase tracking-wider rounded-full shadow-md">
                     {badge}
                   </span>
                 )}
-                {isFeatured && (
-                  <span className="absolute right-3 top-3 rounded-full bg-amber-500/90 text-stone-950 p-1.5 shadow-md">
-                    <Sparkles size={12} />
-                  </span>
-                )}
               </div>
 
-              <div className="mt-4 space-y-1">
+              <div className="mt-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-serif text-lg font-normal text-stone-100 truncate">
-                    {name || 'Untitled Piece'}
-                  </h3>
-                  <p className="text-sm font-semibold text-amber-200 font-mono shrink-0 ml-2">
-                    {formattedPrice}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between pt-2 text-xs text-stone-400">
-                  <span className="capitalize">{collection.replace('-', ' ')}</span>
-                  <div className="flex items-center gap-1 text-amber-400">
-                    <Star size={12} fill="currentColor" />
-                    <span className="font-mono text-stone-300">5.0</span>
-                    <span className="text-stone-500">(New)</span>
+                  <span className="text-[11px] uppercase tracking-wider text-amber-400/80 font-mono">
+                    {collection.replace(/-/g, ' ')}
+                  </span>
+                  <div className="flex items-center gap-1 text-[11px] text-stone-400">
+                    <Star size={11} className="fill-amber-400 text-amber-400" />
+                    <span>5.0 (New)</span>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <div className="p-4 bg-stone-900/40 border border-stone-800/80 rounded-2xl text-xs text-stone-400">
-              <p className="font-medium text-stone-300 mb-1">Preview Note</p>
-              <p className="text-[11px] leading-relaxed">
-                This shows exactly how visitors will see this product on both desktop and mobile screens.
-              </p>
+                <h3 className="font-serif text-lg font-medium text-stone-100">
+                  {name || 'Piece Title Preview'}
+                </h3>
+
+                <div className="flex items-center justify-between pt-2 border-t border-stone-800/60">
+                  <span className="text-sm font-semibold text-stone-100 font-mono">
+                    {formattedPrice}
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-stone-800 text-stone-300">
+                    {status === 'published' ? 'Active' : 'Draft'}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

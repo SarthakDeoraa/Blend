@@ -2,11 +2,8 @@
  * useSupabaseCollections
  * ----------------------
  * Fetches collections + their products directly from Supabase.
- * Falls back to local hardcoded data ONLY if Supabase is unreachable.
- *
- * KEY FIX: Supabase/PostgREST does not support filtering nested relations
- * with .eq('products.status', ...) — those filters are silently ignored.
- * Instead we fetch products separately with proper filters, then join them.
+ * Groups products cleanly into their respective collections by collection_id.
+ * Falls back to local baseline categories ONLY if Supabase is unreachable.
  */
 
 import { useState, useEffect } from 'react';
@@ -38,7 +35,7 @@ export interface SupabaseCollection {
   name: string;
   tagline: string;
   description: string;
-  cover_image_url: string;
+  image_url: string;
   sort_order: number;
 }
 
@@ -88,10 +85,10 @@ export function useSupabaseCollections(): UseCollectionsResult {
 
     async function fetchCollections() {
       try {
-        // Step 1: Fetch all active collections
+        // Step 1: Fetch all active collections with their cover image_url
         const { data: colData, error: colErr } = await supabase
           .from('collections')
-          .select('id, slug, name, tagline, description, cover_image_url, sort_order')
+          .select('id, slug, name, tagline, description, image_url, sort_order')
           .is('deleted_at', null)
           .order('sort_order', { ascending: true });
 
@@ -102,8 +99,7 @@ export function useSupabaseCollections(): UseCollectionsResult {
           return;
         }
 
-        // Step 2: Fetch ONLY published, non-deleted products WITH their images
-        // We filter properly here instead of relying on broken nested filters
+        // Step 2: Fetch published, non-deleted products WITH their product_images
         const { data: prodData, error: prodErr } = await supabase
           .from('products')
           .select(`
@@ -119,7 +115,7 @@ export function useSupabaseCollections(): UseCollectionsResult {
 
         const products = (prodData || []) as unknown as SupabaseProduct[];
 
-        // Step 3: Group products by collection_id
+        // Step 3: Group products strictly by collection_id
         const productsByCollection: Record<string, SupabaseProduct[]> = {};
         for (const p of products) {
           if (!productsByCollection[p.collection_id]) {
@@ -129,19 +125,22 @@ export function useSupabaseCollections(): UseCollectionsResult {
         }
 
         // Step 4: Build the final Collection[] shape
-        const mapped: Collection[] = (colData as unknown as SupabaseCollection[]).map((c) => ({
-          slug: c.slug,
-          name: c.name,
-          image: c.cover_image_url,
-          tagline: c.tagline,
-          description: c.description,
-          products: (productsByCollection[c.id] || []).map(toProduct),
-        }));
+        const mapped: Collection[] = (colData as unknown as SupabaseCollection[]).map((c) => {
+          const fallbackCover = localCollections.find((lc) => lc.slug === c.slug)?.image;
+          return {
+            slug: c.slug,
+            name: c.name,
+            image: c.image_url || fallbackCover || '',
+            tagline: c.tagline || '',
+            description: c.description || '',
+            products: (productsByCollection[c.id] || []).map(toProduct),
+          };
+        });
 
         setCollections(mapped);
         setFromSupabase(true);
       } catch (err: unknown) {
-        console.error('Supabase collections fetch failed, falling back to local data:', err);
+        console.error('Supabase collections fetch failed, falling back to local categories:', err);
         setError(err instanceof Error ? err.message : 'Unknown error');
         setCollections(localCollections);
       } finally {
@@ -155,32 +154,24 @@ export function useSupabaseCollections(): UseCollectionsResult {
   return { collections, loading, error, fromSupabase };
 }
 
-/** Returns only featured products from Supabase (or top 4 local fallback) */
+/** Returns featured products from Supabase (or fallback first 4 published) */
 export function useFeaturedProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(isSupabaseConfigured);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      const featured: Product[] = [];
-      for (const col of localCollections) {
-        for (const p of col.products) {
-          if (featured.length >= 4) break;
-          featured.push(p);
-        }
-        if (featured.length >= 4) break;
-      }
-      setProducts(featured);
       setLoading(false);
       return;
     }
 
     async function fetchFeatured() {
       try {
+        // Query featured products
         const { data, error: fetchError } = await supabase
           .from('products')
           .select(`
-            id, name, price_cents, price_type, badge, rating, review_count,
+            id, name, collection_id, price_cents, price_type, badge, rating, review_count,
             product_images ( image_url, is_primary )
           `)
           .eq('is_featured', true)
@@ -191,8 +182,34 @@ export function useFeaturedProducts() {
 
         if (fetchError) throw fetchError;
 
-        if (data && data.length > 0) {
-          setProducts((data as unknown as SupabaseProduct[]).map(toProduct));
+        let featuredList = (data || []) as unknown as SupabaseProduct[];
+
+        // If fewer than 4 featured, fill up with other published products
+        if (featuredList.length < 4) {
+          const existingIds = featuredList.map((p) => p.id);
+          const { data: moreProds } = await supabase
+            .from('products')
+            .select(`
+              id, name, collection_id, price_cents, price_type, badge, rating, review_count,
+              product_images ( image_url, is_primary )
+            `)
+            .eq('status', 'published')
+            .is('deleted_at', null)
+            .order('sort_order', { ascending: true })
+            .limit(4);
+
+          if (moreProds) {
+            for (const p of moreProds as unknown as SupabaseProduct[]) {
+              if (featuredList.length >= 4) break;
+              if (!existingIds.includes(p.id)) {
+                featuredList.push(p);
+              }
+            }
+          }
+        }
+
+        if (featuredList.length > 0) {
+          setProducts(featuredList.map(toProduct));
         }
       } catch (err) {
         console.error('Failed to load featured products:', err);
