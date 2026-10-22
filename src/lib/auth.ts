@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import type { User, Session } from '@supabase/supabase-js';
-import { supabase, isSupabaseConfigured } from './supabase';
-import type { Json } from './types/database';
+import { useState, useEffect } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { supabase, isSupabaseConfigured } from "./supabase";
+import type { Json } from "./types/database";
 
 export interface AdminAuthState {
   user: { email: string; id: string } | null;
@@ -10,16 +10,16 @@ export interface AdminAuthState {
   isConfigured: boolean;
 }
 
-const LOCAL_SESSION_KEY = 'blend_admin_auth_session';
+const LOCAL_SESSION_KEY = "blend_admin_auth_session";
 
 export function getLocalAdminSession(): { email: string; id: string } | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(LOCAL_SESSION_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (parsed && parsed.email && parsed.expiresAt > Date.now()) {
-      return { email: parsed.email, id: parsed.id || 'admin' };
+      return { email: parsed.email, id: parsed.id || "admin" };
     }
     localStorage.removeItem(LOCAL_SESSION_KEY);
   } catch {
@@ -29,10 +29,10 @@ export function getLocalAdminSession(): { email: string; id: string } | null {
 }
 
 export function setLocalAdminSession(email: string) {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   const payload = {
     email,
-    id: 'local-admin',
+    id: "local-admin",
     // 7 days expiry
     expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
   };
@@ -40,7 +40,7 @@ export function setLocalAdminSession(email: string) {
 }
 
 export function clearLocalAdminSession() {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   localStorage.removeItem(LOCAL_SESSION_KEY);
 }
 
@@ -48,7 +48,10 @@ export function useAdminAuth() {
   const [state, setState] = useState<AdminAuthState>(() => {
     const local = getLocalAdminSession();
     return {
-      user: local,
+      // A local development passcode is never a Supabase session. Once a
+      // Supabase project is connected, require its authenticated session so
+      // database and Storage RLS policies work as intended.
+      user: isSupabaseConfigured ? null : local,
       session: null,
       loading: isSupabaseConfigured,
       isConfigured: isSupabaseConfigured,
@@ -56,19 +59,11 @@ export function useAdminAuth() {
   });
 
   useEffect(() => {
-    // If local session is active, user is already authenticated
     const localUser = getLocalAdminSession();
-    if (localUser) {
-      setState((prev) => ({
-        ...prev,
-        user: localUser,
-        loading: false,
-      }));
-    }
-
     if (!isSupabaseConfigured) {
       setState((prev) => ({
         ...prev,
+        user: localUser,
         loading: false,
         isConfigured: false,
       }));
@@ -78,7 +73,7 @@ export function useAdminAuth() {
     // Check live Supabase session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setState({
-        user: session?.user ? { email: session.user.email || '', id: session.user.id } : localUser,
+        user: session?.user ? { email: session.user.email || "", id: session.user.id } : null,
         session: session ?? null,
         loading: false,
         isConfigured: true,
@@ -89,7 +84,7 @@ export function useAdminAuth() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setState({
-        user: session?.user ? { email: session.user.email || '', id: session.user.id } : getLocalAdminSession(),
+        user: session?.user ? { email: session.user.email || "", id: session.user.id } : null,
         session: session ?? null,
         loading: false,
         isConfigured: true,
@@ -121,8 +116,8 @@ export async function loginWithEmail(email: string, password: string) {
     setLocalAdminSession(data.user?.email || cleanEmail);
 
     await recordAuditLog({
-      action: 'login',
-      entity_type: 'auth',
+      action: "login",
+      entity_type: "auth",
       entity_id: data.user?.id,
       new_data: { email: data.user?.email },
     }).catch(() => {});
@@ -132,18 +127,17 @@ export async function loginWithEmail(email: string, password: string) {
 
   // Fallback: Local Admin Passcode (for dev or before Supabase keys are entered)
   // Default master password is 'blend2026' or custom VITE_ADMIN_PASSWORD
-  const expectedPassword =
-    (import.meta.env['VITE_ADMIN_PASSWORD'] as string) || 'blend2026';
+  const expectedPassword = (import.meta.env["VITE_ADMIN_PASSWORD"] as string) || "blend2026";
 
   if (password === expectedPassword) {
-    setLocalAdminSession(cleanEmail || 'admin@blenddecor.com');
+    setLocalAdminSession(cleanEmail || "admin@blenddecor.com");
     return {
-      user: { email: cleanEmail || 'admin@blenddecor.com', id: 'local-admin' },
+      user: { email: cleanEmail || "admin@blenddecor.com", id: "local-admin" },
       session: null,
     };
   }
 
-  throw new Error('Invalid login credentials');
+  throw new Error("Invalid login credentials");
 }
 
 export async function logoutAdmin() {
@@ -154,8 +148,8 @@ export async function logoutAdmin() {
 }
 
 export async function recordAuditLog(params: {
-  action: 'create' | 'update' | 'delete' | 'restore' | 'login';
-  entity_type: 'product' | 'collection' | 'image' | 'settings' | 'auth';
+  action: "create" | "update" | "delete" | "restore" | "login";
+  entity_type: "product" | "collection" | "image" | "settings" | "auth";
   entity_id?: string;
   old_data?: Json;
   new_data?: Json;
@@ -163,8 +157,10 @@ export async function recordAuditLog(params: {
   if (!isSupabaseConfigured) return;
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('audit_log').insert({
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    await supabase.from("audit_log").insert({
       admin_id: user?.id || null,
       admin_email: user?.email || null,
       action: params.action,
@@ -172,9 +168,9 @@ export async function recordAuditLog(params: {
       entity_id: params.entity_id || null,
       old_data: params.old_data || null,
       new_data: params.new_data || null,
-      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+      user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
     });
   } catch (err) {
-    console.error('Failed to write audit log:', err);
+    console.error("Failed to write audit log:", err);
   }
 }

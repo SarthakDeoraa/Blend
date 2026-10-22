@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { ArrowLeft, Save, Upload } from "lucide-react";
+import { ArrowLeft, Image as ImageIcon, Save, Upload } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,29 +22,30 @@ function NewCollectionPage() {
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
   const [tagline, setTagline] = useState("");
   const [description, setDescription] = useState("");
-  const [imageUrl, setImageUrl] = useState("/assets/cat-table.jpg");
+  const [imageUrl, setImageUrl] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Auto generate slug from name
-  const handleNameChange = (val: string) => {
-    setName(val);
-    setSlug(
-      val
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)+/g, ""),
-    );
-  };
+  // The public route identifier is required internally, but it is derived
+  // from the collection name so it does not need to be managed manually.
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name.trim()) {
       toast.error("Please enter a collection name");
+      return;
+    }
+
+    if (!slug) {
+      toast.error("Use at least one letter or number in the collection name");
       return;
     }
 
@@ -57,7 +58,7 @@ function NewCollectionPage() {
           slug: slug.trim(),
           tagline: tagline.trim(),
           description: description.trim(),
-          image_url: imageUrl,
+          image_url: imageUrl || null,
           status: "published",
           sort_order: 10,
         });
@@ -66,7 +67,9 @@ function NewCollectionPage() {
       } catch (err: unknown) {
         console.error("Error creating collection:", err);
         const message = err instanceof Error ? err.message : "Database error";
-        toast.error(`Could not create collection: ${message}`);
+        toast.error(`Could not create collection: ${message}`, {
+          description: "Run the Supabase setup SQL, then sign in with your Supabase admin account.",
+        });
         setSubmitting(false);
         return;
       }
@@ -114,7 +117,15 @@ function NewCollectionPage() {
       toast.success("Cover image uploaded successfully!");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Upload failed";
-      toast.error(`Upload error: ${message}`);
+      const isPolicyError = message.toLowerCase().includes("row-level security");
+      toast.error(
+        isPolicyError
+          ? "Image upload is blocked by Supabase permissions"
+          : `Upload error: ${message}`,
+        isPolicyError
+          ? { description: "Run the Supabase setup SQL, then sign in again before uploading." }
+          : undefined,
+      );
     } finally {
       setUploadingImage(false);
     }
@@ -168,27 +179,11 @@ function NewCollectionPage() {
             <Input
               id="colName"
               value={name}
-              onChange={(e) => handleNameChange(e.target.value)}
+              onChange={(e) => setName(e.target.value)}
               placeholder="e.g. River Dining Tables"
               required
               className="h-11 bg-stone-950/70 border-stone-800 text-stone-100 rounded-xl"
             />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="slug" className="text-xs text-stone-300">
-              URL Address (Slug)
-            </Label>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-stone-500 font-mono">/collections/</span>
-              <Input
-                id="slug"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                placeholder="river-dining-tables"
-                className="h-11 bg-stone-950/70 border-stone-800 text-stone-100 rounded-xl font-mono text-xs"
-              />
-            </div>
           </div>
 
           <div className="space-y-1.5">
@@ -252,11 +247,18 @@ function NewCollectionPage() {
               </div>
 
               <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border border-stone-800 bg-stone-950">
-                <img
-                  src={imageUrl}
-                  alt="Collection cover preview"
-                  className="h-full w-full object-cover"
-                />
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt="Collection cover preview"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-stone-500">
+                    <ImageIcon size={24} />
+                    <span className="text-[10px]">No cover selected</span>
+                  </div>
+                )}
                 <span className="absolute bottom-2 left-2 rounded-md bg-stone-950/80 px-2 py-1 text-[10px] font-medium text-stone-300">
                   Cover preview
                 </span>
