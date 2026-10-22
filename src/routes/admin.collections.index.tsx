@@ -235,7 +235,7 @@ function AdminCollectionsPage() {
               </Link>
 
               <div className="flex items-center gap-2">
-                <Link to="/admin/collections/new">
+                <Link to="/admin/collections/new" search={{ id: col.id }}>
                   <Button
                     variant="ghost"
                     size="sm"

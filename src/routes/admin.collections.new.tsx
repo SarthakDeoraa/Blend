@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { ArrowLeft, Image as ImageIcon, Save, Upload } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -9,6 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/collections/new")({
+  validateSearch: (search: Record<string, unknown>): { id?: string } => ({
+    id: (search.id as string) || undefined,
+  }),
   head: () => ({
     meta: [
       { title: "New Collection — Blend Admin" },
@@ -20,6 +23,9 @@ export const Route = createFileRoute("/admin/collections/new")({
 
 function NewCollectionPage() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
+  const editId = search.id;
+  const isEditing = Boolean(editId);
 
   const [name, setName] = useState("");
   const [tagline, setTagline] = useState("");
@@ -27,14 +33,45 @@ function NewCollectionPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [loadingData, setLoadingData] = useState(isEditing);
 
   // The public route identifier is required internally, but it is derived
   // from the collection name so it does not need to be managed manually.
-  const slug = name
+  const generatedSlug = name
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)+/g, "");
+
+  useEffect(() => {
+    if (!editId || !isSupabaseConfigured) return;
+
+    async function loadCollection() {
+      try {
+        setLoadingData(true);
+        const { data, error } = await supabase
+          .from("collections")
+          .select("name, slug, tagline, description, image_url")
+          .eq("id", editId)
+          .is("deleted_at", null)
+          .single();
+
+        if (error || !data) throw error || new Error("Collection not found");
+
+        setName(data.name || "");
+        setTagline(data.tagline || "");
+        setDescription(data.description || "");
+        setImageUrl(data.image_url || "");
+      } catch (err) {
+        console.error("Error loading collection:", err);
+        toast.error("Could not load collection details");
+      } finally {
+        setLoadingData(false);
+      }
+    }
+
+    loadCollection();
+  }, [editId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +81,7 @@ function NewCollectionPage() {
       return;
     }
 
-    if (!slug) {
+    if (!generatedSlug) {
       toast.error("Use at least one letter or number in the collection name");
       return;
     }
@@ -53,15 +90,21 @@ function NewCollectionPage() {
 
     if (isSupabaseConfigured) {
       try {
-        const { error } = await supabase.from("collections").insert({
+        const collectionData = {
           name: name.trim(),
-          slug: slug.trim(),
           tagline: tagline.trim(),
           description: description.trim(),
           image_url: imageUrl || null,
-          status: "published",
-          sort_order: 10,
-        });
+        };
+        const { error } =
+          isEditing && editId
+            ? await supabase.from("collections").update(collectionData).eq("id", editId)
+            : await supabase.from("collections").insert({
+                ...collectionData,
+                slug: generatedSlug,
+                status: "published",
+                sort_order: 10,
+              });
 
         if (error) throw error;
       } catch (err: unknown) {
@@ -75,7 +118,7 @@ function NewCollectionPage() {
       }
     }
 
-    toast.success(`Collection "${name}" created!`);
+    toast.success(`Collection "${name}" ${isEditing ? "updated" : "created"}!`);
     navigate({ to: "/admin/collections" });
   };
 
@@ -131,6 +174,15 @@ function NewCollectionPage() {
     }
   };
 
+  if (loadingData) {
+    return (
+      <div className="py-24 text-center text-stone-400 text-sm">
+        <span className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin inline-block mb-3" />
+        <p>Loading collection details…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 pb-16 max-w-4xl mx-auto">
       <div className="flex items-center justify-between border-b border-stone-800 pb-4">
@@ -145,8 +197,12 @@ function NewCollectionPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="font-serif text-2xl font-semibold text-stone-100">Add Collection</h1>
-            <p className="text-xs text-stone-400 mt-0.5">Create a new showcase category</p>
+            <h1 className="font-serif text-2xl font-semibold text-stone-100">
+              {isEditing ? "Edit Collection" : "Add Collection"}
+            </h1>
+            <p className="text-xs text-stone-400 mt-0.5">
+              {isEditing ? "Update this showcase category" : "Create a new showcase category"}
+            </p>
           </div>
         </div>
 
@@ -165,7 +221,7 @@ function NewCollectionPage() {
             className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold rounded-xl text-xs flex items-center gap-2 px-5 h-10 shadow-lg shadow-amber-950/20"
           >
             <Save size={15} />
-            <span>Save Collection</span>
+            <span>{isEditing ? "Save Changes" : "Save Collection"}</span>
           </Button>
         </div>
       </div>
