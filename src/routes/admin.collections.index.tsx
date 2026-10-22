@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import React, { useState, useEffect } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   FolderKanban,
   Plus,
@@ -9,17 +9,18 @@ import {
   GripVertical,
   CheckCircle2,
   Package,
-} from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { collections as localCollections } from '@/data/collections';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+} from "lucide-react";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { collections as localCollections } from "@/data/collections";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import type { CollectionRow, ProductRow } from "@/lib/types/database";
 
-export const Route = createFileRoute('/admin/collections/')({
+export const Route = createFileRoute("/admin/collections/")({
   head: () => ({
     meta: [
-      { title: 'Collections — Blend Admin' },
-      { name: 'robots', content: 'noindex, nofollow' },
+      { title: "Collections — Blend Admin" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: AdminCollectionsPage,
@@ -33,12 +34,17 @@ interface DisplayCollection {
   description: string;
   image_url: string;
   product_count: number;
-  status: 'published' | 'draft';
+  status: "published" | "draft";
+}
+
+interface CollectionWithProducts extends CollectionRow {
+  products?: Pick<ProductRow, "id" | "deleted_at">[] | null;
 }
 
 function AdminCollectionsPage() {
   const [collections, setCollections] = useState<DisplayCollection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadCollections() {
@@ -53,8 +59,8 @@ function AdminCollectionsPage() {
             description: c.description,
             image_url: c.image,
             product_count: c.products.length,
-            status: 'published',
-          }))
+            status: "published",
+          })),
         );
         setLoading(false);
         return;
@@ -62,8 +68,9 @@ function AdminCollectionsPage() {
 
       try {
         const { data, error } = await supabase
-          .from('collections')
-          .select(`
+          .from("collections")
+          .select(
+            `
             id,
             slug,
             name,
@@ -72,27 +79,28 @@ function AdminCollectionsPage() {
             image_url,
             status,
             products (id, deleted_at)
-          `)
-          .is('deleted_at', null)
-          .order('sort_order', { ascending: true });
+          `,
+          )
+          .is("deleted_at", null)
+          .order("sort_order", { ascending: true });
 
         if (error) throw error;
 
         setCollections(
-          (data || []).map((c: any) => ({
+          ((data || []) as CollectionWithProducts[]).map((c) => ({
             id: c.id,
             slug: c.slug,
             name: c.name,
             tagline: c.tagline,
             description: c.description,
-            image_url: c.image_url || '/assets/cat-table.jpg',
-            product_count: c.products?.filter((p: any) => !p.deleted_at).length || 0,
+            image_url: c.image_url || "/assets/cat-table.jpg",
+            product_count: c.products?.filter((product) => !product.deleted_at).length || 0,
             status: c.status,
-          }))
+          })),
         );
       } catch (err) {
-        console.error('Error loading collections:', err);
-        toast.error('Failed to load collections from database');
+        console.error("Error loading collections:", err);
+        toast.error("Failed to load collections from database");
       } finally {
         setLoading(false);
       }
@@ -101,10 +109,57 @@ function AdminCollectionsPage() {
     loadCollections();
   }, []);
 
-  const handleDelete = (name: string) => {
-    toast(`Category "${name}" selected`, {
-      description: 'Categories with existing products cannot be deleted directly.',
-    });
+  const handleDelete = async (collection: DisplayCollection) => {
+    if (collection.product_count > 0) {
+      toast.error(`"${collection.name}" still has products`, {
+        description: "Remove or move its products before deleting this collection.",
+      });
+      return;
+    }
+
+    if (!isSupabaseConfigured) {
+      toast.error("Connect Supabase before deleting a collection");
+      return;
+    }
+
+    if (!window.confirm(`Delete the empty collection "${collection.name}"?`)) return;
+
+    try {
+      setDeletingId(collection.id);
+
+      // Check again immediately before deletion so a recently-added product
+      // cannot be orphaned by a stale collection-card count.
+      const { count, error: countError } = await supabase
+        .from("products")
+        .select("id", { count: "exact", head: true })
+        .eq("collection_id", collection.id)
+        .is("deleted_at", null);
+
+      if (countError) throw countError;
+
+      if ((count ?? 0) > 0) {
+        toast.error(`"${collection.name}" now has products`, {
+          description: "It was not deleted.",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from("collections")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", collection.id);
+
+      if (error) throw error;
+
+      setCollections((current) => current.filter((item) => item.id !== collection.id));
+      toast.success(`"${collection.name}" deleted`);
+    } catch (err: unknown) {
+      console.error("Error deleting collection:", err);
+      const message = err instanceof Error ? err.message : "Database error";
+      toast.error(`Could not delete collection: ${message}`);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -151,9 +206,7 @@ function AdminCollectionsPage() {
 
               <div className="p-5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-serif text-xl font-normal text-stone-100">
-                    {col.name}
-                  </h3>
+                  <h3 className="font-serif text-xl font-normal text-stone-100">{col.name}</h3>
                   <span className="text-xs text-stone-400 flex items-center gap-1 bg-stone-800/80 px-2.5 py-1 rounded-lg">
                     <Package size={12} />
                     {col.product_count} items
@@ -195,10 +248,14 @@ function AdminCollectionsPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleDelete(col.name)}
+                  onClick={() => handleDelete(col)}
+                  disabled={deletingId === col.id}
                   className="h-8 px-2 text-stone-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg"
                 >
-                  <Trash2 size={13} />
+                  <Trash2
+                    size={13}
+                    className={deletingId === col.id ? "animate-pulse" : undefined}
+                  />
                 </Button>
               </div>
             </div>
