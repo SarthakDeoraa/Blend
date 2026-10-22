@@ -17,6 +17,43 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import type {
+  PriceType,
+  ProductAvailability,
+  ProductImageRow,
+  ProductInsert,
+  ProductStatus,
+  ProductUpdate,
+} from "@/lib/types/database";
+
+interface CollectionOption {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+interface EditableProduct {
+  name: string;
+  description: string;
+  price_cents: number;
+  discount_percent?: number | null;
+  price_type?: PriceType | null;
+  badge?: string | null;
+  is_featured?: boolean | null;
+  availability?: ProductAvailability | null;
+  status?: ProductStatus | null;
+  collections?: { slug: string } | null;
+  product_images?: Pick<ProductImageRow, "image_url" | "is_primary">[] | null;
+}
+
+const fallbackCollectionOptions: CollectionOption[] = [
+  { id: "wall-art", slug: "wall-art", name: "Wall Art" },
+  { id: "clocks", slug: "clocks", name: "Clocks & Stands" },
+  { id: "center-tables", slug: "center-tables", name: "Center Tables" },
+  { id: "coasters", slug: "coasters", name: "Coasters" },
+  { id: "trays-and-boards", slug: "trays-and-boards", name: "Trays & Boards" },
+  { id: "custom-pieces", slug: "custom-pieces", name: "Custom Pieces" },
+];
 
 export const Route = createFileRoute("/admin/products/new")({
   validateSearch: (search: Record<string, unknown>): { id?: string | undefined } => ({
@@ -52,6 +89,39 @@ function NewProductPage() {
   const [imageUrl, setImageUrl] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [loadingData, setLoadingData] = useState(isEditing);
+  const [collectionOptions, setCollectionOptions] =
+    useState<CollectionOption[]>(fallbackCollectionOptions);
+
+  // Collections are managed in the admin, so load them rather than maintaining
+  // a separate hard-coded list in the product editor.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    async function loadCollectionOptions() {
+      try {
+        const { data, error } = await supabase
+          .from("collections")
+          .select("id, slug, name")
+          .is("deleted_at", null)
+          .order("sort_order", { ascending: true });
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const options = data as CollectionOption[];
+          setCollectionOptions(options);
+          setCollection((current) =>
+            options.some((option) => option.slug === current) ? current : options[0].slug,
+          );
+        }
+      } catch (err) {
+        console.error("Failed to load collection options:", err);
+        toast.error("Could not load collections; showing default categories");
+      }
+    }
+
+    loadCollectionOptions();
+  }, []);
 
   // Load existing product if in edit mode
   useEffect(() => {
@@ -60,7 +130,7 @@ function NewProductPage() {
     async function loadProduct() {
       try {
         setLoadingData(true);
-        let prodData: any = null;
+        let prodData: EditableProduct | null = null;
         const { data, error } = await supabase
           .from("products")
           .select(
@@ -94,6 +164,8 @@ function NewProductPage() {
           prodData = data;
         }
 
+        if (!prodData) throw error;
+
         setName(prodData.name || "");
         setDescription(prodData.description || "");
         setPriceRupees(String((prodData.price_cents || 0) / 100));
@@ -107,7 +179,8 @@ function NewProductPage() {
           setCollection(prodData.collections.slug);
         }
         const img =
-          prodData.product_images?.find((i: any) => i.is_primary) ?? prodData.product_images?.[0];
+          prodData.product_images?.find((image) => image.is_primary) ??
+          prodData.product_images?.[0];
         if (img?.image_url) {
           setImageUrl(img.image_url);
         }
@@ -156,7 +229,7 @@ function NewProductPage() {
 
         if (isEditing && editId) {
           // UPDATE existing product
-          const updatePayload: Record<string, any> = {
+          const updatePayload: ProductUpdate = {
             collection_id: col.id,
             name: name.trim(),
             description: description.trim(),
@@ -217,7 +290,7 @@ function NewProductPage() {
         }
 
         // INSERT new product
-        const insertPayload: Record<string, any> = {
+        const insertPayload: ProductInsert = {
           collection_id: col.id,
           name: name.trim(),
           description: description.trim(),
@@ -403,12 +476,11 @@ function NewProductPage() {
                   onChange={(e) => setCollection(e.target.value)}
                   className="w-full h-11 px-3 bg-stone-950/70 border border-stone-800 text-stone-200 text-sm rounded-xl focus:outline-none focus:border-amber-500"
                 >
-                  <option value="wall-art">Wall Art</option>
-                  <option value="clocks">Clocks & Stands</option>
-                  <option value="center-tables">Center Tables</option>
-                  <option value="coasters">Coasters</option>
-                  <option value="trays-and-boards">Trays & Boards</option>
-                  <option value="custom-pieces">Custom Pieces</option>
+                  {collectionOptions.map((option) => (
+                    <option key={option.id} value={option.slug}>
+                      {option.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -468,7 +540,7 @@ function NewProductPage() {
                 <select
                   id="priceType"
                   value={priceType}
-                  onChange={(e) => setPriceType(e.target.value as any)}
+                  onChange={(e) => setPriceType(e.target.value as PriceType)}
                   className="w-full h-11 px-3 bg-stone-950/70 border border-stone-800 text-stone-200 text-sm rounded-xl focus:outline-none focus:border-amber-500"
                 >
                   <option value="fixed">Fixed Price (e.g. ₹18,400)</option>
@@ -604,7 +676,7 @@ function NewProductPage() {
                 <select
                   id="availability"
                   value={availability}
-                  onChange={(e) => setAvailability(e.target.value as any)}
+                  onChange={(e) => setAvailability(e.target.value as ProductAvailability)}
                   className="w-full h-11 px-3 bg-stone-950/70 border border-stone-800 text-stone-200 text-sm rounded-xl"
                 >
                   <option value="available">Ready to Ship / Available</option>
@@ -620,7 +692,7 @@ function NewProductPage() {
                 <select
                   id="status"
                   value={status}
-                  onChange={(e) => setStatus(e.target.value as any)}
+                  onChange={(e) => setStatus(e.target.value as ProductStatus)}
                   className="w-full h-11 px-3 bg-stone-950/70 border border-stone-800 text-stone-200 text-sm rounded-xl"
                 >
                   <option value="published">Published (Visible to Visitors)</option>
